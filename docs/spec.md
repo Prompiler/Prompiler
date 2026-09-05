@@ -368,7 +368,8 @@ and share a single function namespace across the program.
 
 ```
 func double(x: int): int {
-    var y = x * 2          // immutable local binding
+    var y = x             // mutable local binding
+    y = y * 2             // reassignment
     if (y > 10) {
         return y
     } else {
@@ -379,13 +380,15 @@ func double(x: int): int {
 
 Statement set:
 
-- `var name = expr` — immutable local binding.
+- `var name = expr` — declares a **mutable** local binding.
+- `name = expr` — assignment; reassigns a local `var` or parameter in scope.
 - `if (expr) { ... } else { ... }`
 - `for (x in expr) { ... }` — loop variable immutable.
 - `return expr`
 
-No reassignment, no `while`, no expression statements. `var` and loop variables
-are block-scoped; **shadowing an outer name is allowed**.
+No `while`, no expression statements. Reassignment (`name = expr`) is allowed
+for local `var` bindings and parameters — not loop variables, `this`, or fields.
+`var` and loop variables are block-scoped; **shadowing an outer name is allowed**.
 
 ### 7.2 Methods
 
@@ -403,6 +406,14 @@ Within a method body, `this` is an implicit, immutable receiver whose type is th
 enclosing class. Fields and sibling methods are reached through `this` (`this.x`,
 `this.other()`); there is no implicit bare-name resolution. `this` is valid only
 inside a method body.
+
+### 7.3 Argument passing
+
+Arguments are passed **by value**. A parameter is initialized with a copy of the
+argument's binding, so reassigning the parameter inside the function does not
+affect the caller's variable. For arrays, maps, and class instances the copy is
+**shallow**: the top-level binding is copied, and nested collections or objects
+are shared with the caller.
 
 ## 8. Prompt body and templating
 
@@ -593,7 +604,9 @@ methods).
 
 | Function | Signature | Returns |
 |---|---|---|
-| `range` | `range(n: int)` | `int[]` from `0` to `n-1` |
+| `range` | `range(stop: int)` | `int[]` from `0` to `stop-1` |
+| `range_from` | `range_from(start: int, stop: int)` | `int[]` from `start` to `stop-1` |
+| `range_step` | `range_step(start: int, stop: int, step: int)` | `int[]` from `start` toward `stop` by `step` |
 | `join` | `join(a: string[], sep: string)` | `string` |
 | `int` | `int(x)` | `int` (explicit cast) |
 | `float` | `float(x)` | `float` (explicit cast) |
@@ -623,7 +636,23 @@ indices, which you iterate and then use to index the target array:
 ```
 
 This reuses two primitives already in the language — `array.length` and array
-indexing — so it introduces no new type or loop form.
+indexing — so it introduces no new type or loop form. For start/stop/step
+sequences, use `range_from` and `range_step` (§10.2).
+
+### 10.2 `range`, `range_from`, `range_step`
+
+Three free functions produce integer index arrays. They differ in how many
+arguments they take — the language has no function overloading, so the forms are
+split across distinct names.
+
+- `range(stop)` is `range_from(0, stop)` with step 1. `stop < 0` is a runtime
+  error; `stop == 0` yields an empty array.
+- `range_from(start, stop)` counts `start, start+1, …, stop-1` (step 1). It is
+  empty when `start >= stop`.
+- `range_step(start, stop, step)` counts from `start` toward `stop` in increments
+  of `step`. `step == 0` is a runtime error. A positive `step` counts up while the
+  value is `< stop` (empty when `start >= stop`); a negative `step` counts down
+  while the value is `> stop` (empty when `start <= stop`).
 
 ## 11. Type checking rules
 
@@ -638,6 +667,7 @@ diagnostics). The checker produces **positioned diagnostics** for:
 - default value not assignable to the declared type
 - enum default not a member of the enum
 - type mismatch in expressions (arithmetic, comparison, assignment)
+- reassigning a local `var` or parameter with a value not assignable to its type
 - calling a non-function, wrong arity, or wrong argument type
 - calling a method that does not exist on the receiver's type
 - duplicate member names within a class (a field and a method, or two methods,
@@ -768,7 +798,8 @@ Evaluation can fail at runtime even though the program type-checks:
 - array index out of bounds
 - division or modulo by zero
 - integer overflow (signed 64-bit; arbitrary precision is a future extension)
-- `range(n)` with a negative `n`
+- `range(stop)` with a negative `stop` (single-argument form)
+- `range_step(start, stop, step)` with `step == 0`
 - a failed cast (e.g. `int("abc")`)
 - unwrapping an empty `Optional`
 
