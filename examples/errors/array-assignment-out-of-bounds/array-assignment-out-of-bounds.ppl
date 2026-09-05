@@ -1,0 +1,17 @@
+// Runtime error (type-checks): array element assignment out of bounds.
+
+func set_at(xs: string[], i: int): string {
+  xs[i] = "changed"
+  return xs[i]
+}
+
+template ArrayAssignmentOutOfBounds {
+  variables {
+    items: string[]
+    idx: int
+  }
+
+  prompt {
+    {{ set_at(items, idx) }}
+  }
+}

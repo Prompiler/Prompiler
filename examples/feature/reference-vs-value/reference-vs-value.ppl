@@ -1,0 +1,38 @@
+// Demonstrates pass semantics: scalars are passed by value (reassignment is
+// local), while arrays and maps are reference types (element assignment
+// mutates the caller's value). Reassigning a parameter binding is always local.
+
+func bump_scalar(x: int): int {
+  x = x + 1
+  return x
+}
+
+func bump_first(xs: int[]): int {
+  xs[0] = xs[0] + 1
+  return xs[0]
+}
+
+func bump_key(m: map<string, int>): int {
+  m["count"] = m["count"] + 1
+  return m["count"]
+}
+
+func rebind(xs: int[]): int {
+  xs = [99, 99]       // reassigns the parameter binding only
+  return xs[0]
+}
+
+template ReferenceValue {
+  variables {
+    n: int
+    nums: int[]
+    counts: map<string, int>
+  }
+
+  prompt {
+    Scalar: {{ n }} -> {{ bump_scalar(n) }} -> {{ n }}
+    Array: {{ nums[0] }} -> {{ bump_first(nums) }} -> {{ nums[0] }}
+    Map: {{ counts["count"] }} -> {{ bump_key(counts) }} -> {{ counts["count"] }}
+    Rebound: {{ rebind(nums) }} {{ nums[0] }}
+  }
+}
