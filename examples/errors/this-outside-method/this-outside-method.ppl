@@ -1,0 +1,19 @@
+// Compile-time error: `this` is only valid inside a method body.
+
+class Point {
+  x: int
+}
+
+func read_x(): int {
+  return this.x
+}
+
+template ThisOutsideMethod {
+  variables {
+    p: Point
+  }
+
+  prompt {
+    {{ read_x() }}
+  }
+}

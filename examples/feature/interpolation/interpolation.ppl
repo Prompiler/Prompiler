@@ -1,0 +1,31 @@
+// A minimal interpolation example.
+/* Demonstrates the string form of every stringable type
+   (string, int, float, bool, enum). */
+
+enum Difficulty {
+  Easy,
+  Medium,
+  Hard,
+}
+
+template Interpolate {
+  description: "Renders each stringable type into its string form"
+
+  variables {
+    name: string
+    age: int
+    score: float
+    active: bool
+    level: Difficulty
+    greeting: string = 'hello' // single-quoted default (optional variable)
+  }
+
+  prompt {
+    Name: {{ name }}
+    Age: {{ age }}
+    Score: {{ score }}
+    Active: {{ active }}
+    Level: {{ level }}
+    Greeting: {{ greeting }}
+  }
+}

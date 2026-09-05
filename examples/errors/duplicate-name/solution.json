@@ -1,0 +1,13 @@
+{
+  "template": "DuplicateName",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "typecheck",
+      "category": "duplicate_name",
+      "line": 4,
+      "column": 3,
+      "message": "duplicate enum member 'Red'"
+    }
+  ]
+}

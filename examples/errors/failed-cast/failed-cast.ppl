@@ -1,0 +1,12 @@
+// Runtime error (type-checks): a failed cast. The operand is a variable,
+// so the parse failure is reported at runtime rather than compile time.
+
+template FailedCast {
+  variables {
+    text: string
+  }
+
+  prompt {
+    {{ int(text) }}
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "template": "IndexOutOfBounds",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "runtime",
+      "category": "index_out_of_bounds",
+      "line": 7,
+      "column": 11,
+      "message": "array index 5 out of bounds (length 2)"
+    }
+  ]
+}

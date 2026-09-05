@@ -1,0 +1,5 @@
+{
+  "template": "Expressions",
+  "expected_prompt": "    Mul: 17\n    Group: 39\n    Div: 5.5\n    Mod: 2\n    Neg: -11\n    Not: true\n    Le: true\n    Ge: true\n    Ne: true\n    And: true\n    Or: false\n    CastInt: 2\n    CastStr: 11\n    CastBool: true\n    Upper: GO\n    Len: 3\n    Call: 33\n    X: 5\n    W: 1.5\n    Concat: go-rust\n",
+  "expected_errors": []
+}

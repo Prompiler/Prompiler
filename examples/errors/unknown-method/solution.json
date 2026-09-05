@@ -1,0 +1,13 @@
+{
+  "template": "UnknownMethod",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "typecheck",
+      "category": "unknown_method",
+      "line": 15,
+      "column": 10,
+      "message": "method 'distance' does not exist on Point"
+    }
+  ]
+}

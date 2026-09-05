@@ -1,0 +1,7 @@
+// Shared type, imported by onboarding-email.ppl.
+
+class Employee {
+  name: string
+  role: string
+  start_date: string
+}

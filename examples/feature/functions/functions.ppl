@@ -1,0 +1,48 @@
+// Demonstrates `func` declarations: immutable local `var`, nested
+// `if`/`else`, a `for` loop with early `return`, and a forward
+// reference (a function used before its definition).
+
+func sign(n: int): string {
+  if (n < 0) {
+    return "negative"
+  } else {
+    if (n == 0) {
+      return "zero"
+    } else {
+      return "positive"
+    }
+  }
+}
+
+func contains(xs: string[], target: string): bool {
+  for (x in xs) {
+    if (x == target) {
+      return true
+    }
+  }
+  return false
+}
+
+func add(a: int, b: int): int {
+  var total = a + b
+  return total
+}
+
+template Functions {
+  variables {
+    n: int
+    items: string[]
+    needle: string
+  }
+
+  prompt {
+    Sign: {{ sign(n) }}
+    Contains: {{ contains(items, needle) }}
+    Sum: {{ add(n, 10) }}
+    Forward: {{ later(n) }}
+  }
+}
+
+func later(x: int): int {
+  return x * 2
+}

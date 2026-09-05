@@ -1,0 +1,14 @@
+// Compile-time error: only arrays are iterable. Maps must be converted
+// via `keys()` or `values()` before iteration.
+
+template IterateNonArray {
+  variables {
+    data: map<string, string>
+  }
+
+  prompt {
+    {% for k in data %}
+    {{ k }}
+    {% end %}
+  }
+}

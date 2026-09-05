@@ -1,0 +1,42 @@
+// A realistic code-review prompt: enum, class, an array loop with
+// `range` + indexing, conditionals, `join`, and an enum default.
+
+enum Difficulty {
+  Easy,
+  Medium,
+  Hard,
+}
+
+class ReviewConfig {
+  strictness: Difficulty
+  files: string[]
+  max_issues: int
+}
+
+template CodeReview {
+  description: "Generates a code-review prompt from a config"
+
+  variables {
+    config: ReviewConfig
+    language: string = "Go"
+    focus: string = "correctness"
+  }
+
+  prompt {
+    Review the following {{ language }} code for {{ focus }}.
+    Strictness: {{ config.strictness }}
+    File list: {{ join(config.files, ", ") }}
+    Files:
+    {% for i in range(config.files.length) %}
+    - {{ config.files[i] }}
+    {% end %}
+    {% if config.max_issues > 0 %}
+    Limit findings to {{ config.max_issues }} issues.
+    {% else %}
+    Report all findings.
+    {% end %}
+    {% if config.strictness == Difficulty.Hard %}
+    Be exhaustive and flag style nits.
+    {% end %}
+  }
+}

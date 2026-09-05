@@ -1,0 +1,5 @@
+{
+  "template": "EnumExample",
+  "expected_prompt": "    Level: Warning\n    Min: Error\n    Is error: true\n",
+  "expected_errors": []
+}

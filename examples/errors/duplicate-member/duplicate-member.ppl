@@ -1,0 +1,20 @@
+// Compile-time error: a field and a method cannot share a name within
+// a class.
+
+class Thing {
+  value: int
+
+  func value(): int {
+    return 0
+  }
+}
+
+template DuplicateMember {
+  variables {
+    t: Thing
+  }
+
+  prompt {
+    {{ t.value }}
+  }
+}

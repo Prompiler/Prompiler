@@ -1,0 +1,7 @@
+{
+  "config": {
+    "strictness": "Hard",
+    "files": ["main.go", "util.go"],
+    "max_issues": 5
+  }
+}

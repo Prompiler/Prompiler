@@ -1,0 +1,22 @@
+// Demonstrates `class` declarations, field access on a class-typed
+// variable, string concatenation, and the `length` property.
+
+class Address {
+  street: string
+  city: string
+  zip: int
+}
+
+template ClassExample {
+  variables {
+    address: Address
+  }
+
+  prompt {
+    Street: {{ address.street }}
+    City: {{ address.city }}
+    Zip: {{ address.zip }}
+    Full: {{ address.street + ", " + address.city }}
+    Street length: {{ address.street.length }}
+  }
+}

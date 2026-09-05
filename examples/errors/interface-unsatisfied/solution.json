@@ -1,0 +1,13 @@
+{
+  "template": "InterfaceUnsatisfied",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "typecheck",
+      "category": "interface_unsatisfied",
+      "line": 20,
+      "column": 11,
+      "message": "Person does not satisfy interface Named (missing field 'age')"
+    }
+  ]
+}

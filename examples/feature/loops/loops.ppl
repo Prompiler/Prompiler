@@ -1,0 +1,19 @@
+// Demonstrates `{% for %}` loops: both direct iteration over an array
+// and index-based iteration via the standard-library `range`.
+
+template Loops {
+  variables {
+    items: string[]
+  }
+
+  prompt {
+    Items:
+    {% for item in items %}
+    - {{ item }}
+    {% end %}
+    Indexed:
+    {% for i in range(items.length) %}
+    {{ i }}: {{ items[i] }}
+    {% end %}
+  }
+}

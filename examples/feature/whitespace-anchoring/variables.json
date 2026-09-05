@@ -1,0 +1,4 @@
+{
+  "code": "def foo():\n    return 1",
+  "name": "Ada"
+}

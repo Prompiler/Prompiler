@@ -1,0 +1,13 @@
+// Runtime error (type-checks): division by zero. The divisor is a
+// variable, so the error is reported at runtime rather than compile time.
+
+template DivisionByZero {
+  variables {
+    n: int
+    d: int
+  }
+
+  prompt {
+    {{ n / d }}
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "template": "FailedCast",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "runtime",
+      "category": "failed_cast",
+      "line": 7,
+      "column": 10,
+      "message": "cannot parse 'abc' as int"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+// Demonstrates methods: inline methods on a class (with the implicit `this`
+// receiver), method signatures on an interface, structural satisfaction over
+// fields AND methods, and covariant return types.
+
+interface Named {
+  name: string
+  func label(): string
+  func renamed(new_name: string): Named
+}
+
+class Person {
+  name: string
+  age: int
+
+  func label(): string {
+    return this.name + " (" + string(this.age) + ")"
+  }
+
+  func renamed(new_name: string): Person {
+    return Person { name: new_name, age: this.age }
+  }
+
+  func is_adult(limit: int): bool {
+    return this.age >= limit
+  }
+}
+
+template Methods {
+  variables {
+    person: Person
+    entity: Named
+  }
+
+  prompt {
+    Person label: {{ person.label() }}
+    Person adult: {{ person.is_adult(18) }}
+    Entity label: {{ entity.label() }}
+    Renamed label: {{ entity.renamed("Bob").label() }}
+  }
+}

@@ -1,0 +1,46 @@
+// Demonstrates the expression grammar: operator precedence, casts,
+// method calls, field access, indexing, and string concatenation
+// vs arithmetic. (Array/map/class/optional literals are exercised in
+// the maps, classes, and optional feature examples.)
+
+class Point {
+  x: int
+  y: int
+}
+
+func triple(a: int): int {
+  return a * 3
+}
+
+template Expressions {
+  variables {
+    count: int
+    factor: float
+    tags: string[]
+    weights: map<string, float>
+    origin: Point
+  }
+
+  prompt {
+    Mul: {{ count + 2 * 3 }}
+    Group: {{ (count + 2) * 3 }}
+    Div: {{ count / 2 }}
+    Mod: {{ count % 3 }}
+    Neg: {{ -count }}
+    Not: {{ !(count == 0) }}
+    Le: {{ count <= 11 }}
+    Ge: {{ count >= 10 }}
+    Ne: {{ count != 10 }}
+    And: {{ count > 3 && count < 100 }}
+    Or: {{ count == 0 || count == 1 }}
+    CastInt: {{ int(factor) }}
+    CastStr: {{ string(count) }}
+    CastBool: {{ bool(1) }}
+    Upper: {{ tags[0].upper() }}
+    Len: {{ tags.length }}
+    Call: {{ triple(count) }}
+    X: {{ origin.x }}
+    W: {{ weights["a"] }}
+    Concat: {{ tags[0] + "-" + tags[1] }}
+  }
+}

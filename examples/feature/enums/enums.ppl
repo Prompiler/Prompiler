@@ -1,0 +1,22 @@
+// Demonstrates `enum` declarations, member access, enum string form,
+// an enum-typed default, and enum comparison.
+
+enum LogLevel {
+  Debug,
+  Info,
+  Warning,
+  Error,
+}
+
+template EnumExample {
+  variables {
+    level: LogLevel = Warning // default must be an enum member
+    min_level: LogLevel
+  }
+
+  prompt {
+    Level: {{ level }}
+    Min: {{ min_level }}
+    Is error: {{ min_level == LogLevel.Error }}
+  }
+}

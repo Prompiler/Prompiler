@@ -1,0 +1,13 @@
+// Compile-time error: `+` requires operands of the same type, and
+// Prompiler performs no implicit coercion.
+
+template TypeMismatch {
+  variables {
+    x: int
+    y: string
+  }
+
+  prompt {
+    {{ x + y }}
+  }
+}

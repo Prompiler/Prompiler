@@ -1,0 +1,17 @@
+// Compile-time error: calling a method that does not exist on the
+// receiver's type.
+
+class Point {
+  x: int
+  y: int
+}
+
+template UnknownMethod {
+  variables {
+    p: Point
+  }
+
+  prompt {
+    {{ p.distance() }}
+  }
+}

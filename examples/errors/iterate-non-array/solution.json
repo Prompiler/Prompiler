@@ -1,0 +1,13 @@
+{
+  "template": "IterateNonArray",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "typecheck",
+      "category": "iterate_non_array",
+      "line": 7,
+      "column": 18,
+      "message": "cannot iterate over map<string, string>; convert with keys() or values() first"
+    }
+  ]
+}

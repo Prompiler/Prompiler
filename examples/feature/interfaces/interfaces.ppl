@@ -1,0 +1,27 @@
+// Demonstrates `interface` declarations and structural typing: a
+// variable typed as an interface accepts any class that provides at
+// least the interface's required fields.
+
+interface Named {
+  name: string
+}
+
+class Person {
+  name: string
+  age: int
+}
+
+class Company {
+  name: string
+  industry: string
+}
+
+template InterfaceExample {
+  variables {
+    entity: Named
+  }
+
+  prompt {
+    Name: {{ entity.name }}
+  }
+}

@@ -1,0 +1,11 @@
+// Compile-time error: reference to an undefined type.
+
+template UnknownType {
+  variables {
+    item: Widget
+  }
+
+  prompt {
+    {{ item }}
+  }
+}

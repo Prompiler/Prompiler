@@ -1,0 +1,8 @@
+{
+  "tasks": [
+    { "title": "Write spec", "status": "Done", "effort": 2 },
+    { "title": "Implement lexer", "status": "InProgress", "effort": 5 },
+    { "title": "Deploy", "status": "Blocked", "effort": 1 }
+  ],
+  "metadata": { "team": "core", "week": "2026-W36" }
+}

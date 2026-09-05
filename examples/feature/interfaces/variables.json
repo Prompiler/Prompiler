@@ -1,0 +1,3 @@
+{
+  "entity": { "$type": "Person", "name": "Ada", "age": 36 }
+}

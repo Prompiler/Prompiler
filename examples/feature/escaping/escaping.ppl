@@ -1,0 +1,15 @@
+// Demonstrates prompt-text escaping (§8.5): `\{` renders `{`,
+// `\}` renders `}`, and `\\` renders `\`.
+
+template Escaping {
+  variables {
+    name: string
+  }
+
+  prompt {
+    Literal interpolation braces: \{\{ name \}\}
+    Literal block braces: \{% if x %\}
+    Literal backslash: C:\\path
+    Mixed: \{\{ name \}\} literal, {{ name }} interpolated
+  }
+}

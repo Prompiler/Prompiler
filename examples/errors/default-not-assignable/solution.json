@@ -1,0 +1,20 @@
+{
+  "template": "DefaultNotAssignable",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "typecheck",
+      "category": "default_not_assignable",
+      "line": 8,
+      "column": 10,
+      "message": "default value 'five' (string) is not assignable to int"
+    },
+    {
+      "stage": "typecheck",
+      "category": "enum_default_not_member",
+      "line": 9,
+      "column": 16,
+      "message": "default value 'Medium' is not a member of enum Level"
+    }
+  ]
+}

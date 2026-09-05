@@ -1,0 +1,13 @@
+{
+  "template": "A",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "typecheck",
+      "category": "cyclic_include",
+      "line": 7,
+      "column": 16,
+      "message": "cyclic template reference: A -> B -> A"
+    }
+  ]
+}

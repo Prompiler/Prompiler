@@ -1,0 +1,5 @@
+{
+  "template": "Methods",
+  "expected_prompt": "    Person label: Ada (36)\n    Person adult: true\n    Entity label: Grace (45)\n    Renamed label: Bob (45)\n",
+  "expected_errors": []
+}

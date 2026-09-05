@@ -1,0 +1,7 @@
+{
+  "count": 11,
+  "factor": 2.9,
+  "tags": ["go", "rust", "zig"],
+  "weights": { "a": 1.5, "b": 2.5 },
+  "origin": { "x": 5, "y": 7 }
+}

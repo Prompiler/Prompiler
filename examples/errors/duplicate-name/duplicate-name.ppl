@@ -1,0 +1,17 @@
+// Compile-time error: duplicate enum member.
+
+enum Color {
+  Red,
+  Green,
+  Red,
+}
+
+template DuplicateName {
+  variables {
+    x: int
+  }
+
+  prompt {
+    {{ x }}
+  }
+}

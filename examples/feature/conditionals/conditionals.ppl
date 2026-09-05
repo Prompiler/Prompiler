@@ -1,0 +1,23 @@
+// Demonstrates `{% if %}` / `{% else %}` conditionals and the
+// short-circuit boolean operators `&&` and `||`.
+
+template Conditionals {
+  variables {
+    count: int
+    label: string = "default"
+  }
+
+  prompt {
+    {% if count > 10 %}
+    High
+    {% else %}
+    Low
+    {% end %}
+    {% if label == "default" && count < 5 %}
+    Default and small
+    {% end %}
+    {% if count == 0 || count == 1 %}
+    Edge
+    {% end %}
+  }
+}

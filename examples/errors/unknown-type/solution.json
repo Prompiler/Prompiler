@@ -1,0 +1,13 @@
+{
+  "template": "UnknownType",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "typecheck",
+      "category": "unknown_type",
+      "line": 3,
+      "column": 10,
+      "message": "unknown type 'Widget'"
+    }
+  ]
+}

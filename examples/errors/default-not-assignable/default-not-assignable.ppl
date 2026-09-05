@@ -1,0 +1,18 @@
+// Compile-time errors: a default whose type does not match the declared
+// type, and an enum default that is not a member of the enum.
+
+enum Level {
+  Low,
+  High,
+}
+
+template DefaultNotAssignable {
+  variables {
+    n: int = "five"
+    level: Level = Medium
+  }
+
+  prompt {
+    {{ n }} {{ level }}
+  }
+}

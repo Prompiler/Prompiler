@@ -1,0 +1,38 @@
+// A realistic status report: array-of-class, a status enum, nested
+// `if` inside `for`, and map metadata via `keys()` + indexing.
+
+enum Status {
+  Done,
+  InProgress,
+  Blocked,
+}
+
+class Task {
+  title: string
+  status: Status
+  effort: int
+}
+
+template WeeklyReport {
+  variables {
+    tasks: Task[]
+    metadata: map<string, string>
+  }
+
+  prompt {
+    Weekly status report
+    Tasks:
+    {% for t in tasks %}
+    - {{ t.title }} ({{ t.status }})
+    {% end %}
+    {% for t in tasks %}
+    {% if t.status == Status.Blocked %}
+    BLOCKED: {{ t.title }}
+    {% end %}
+    {% end %}
+    Metadata:
+    {% for k in metadata.keys() %}
+    {{ k }}: {{ metadata[k] }}
+    {% end %}
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "employee": { "name": "Ada", "role": "Engineer", "start_date": "2026-09-01" },
+  "company": "Acme",
+  "manager": "Carla"
+}

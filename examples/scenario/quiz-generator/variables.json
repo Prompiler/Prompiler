@@ -1,0 +1,7 @@
+{
+  "questions": [
+    { "text": "What is 1+1?", "answer": "2" },
+    { "text": "Capital of France?", "answer": "Paris" },
+    { "text": "Year of the moon landing?", "answer": "1969" }
+  ]
+}

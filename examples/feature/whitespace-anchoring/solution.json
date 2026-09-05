@@ -1,0 +1,5 @@
+{
+  "template": "WhitespaceAnchoring",
+  "expected_prompt": "    Inline: Ada end\n    Block:\n    def foo():\n        return 1\n    Done\n",
+  "expected_errors": []
+}

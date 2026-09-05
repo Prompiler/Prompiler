@@ -1,0 +1,11 @@
+// Runtime error (type-checks): unwrapping an empty Optional.
+
+template UnwrapEmptyOptional {
+  variables {
+    value: Optional<string>
+  }
+
+  prompt {
+    {{ value.value() }}
+  }
+}

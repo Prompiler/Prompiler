@@ -1,0 +1,28 @@
+// Demonstrates `Optional<T>`: the `none` literal default, the `some(x)`
+// constructor (used inside a function), and the `is_empty()` / `value()`
+// methods.
+
+func wrap(x: string): Optional<string> {
+  return some(x)
+}
+
+template OptionalExample {
+  variables {
+    nickname: Optional<string> = none
+    tag: Optional<string>
+  }
+
+  prompt {
+    {% if nickname.is_empty() %}
+    Nickname: none
+    {% else %}
+    Nickname: {{ nickname.value() }}
+    {% end %}
+    {% if tag.is_empty() %}
+    Tag: none
+    {% else %}
+    Tag: {{ tag.value() }}
+    {% end %}
+    Wrapped: {{ wrap("hello").value() }}
+  }
+}

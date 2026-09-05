@@ -1,0 +1,13 @@
+{
+  "template": "DuplicateMember",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "typecheck",
+      "category": "duplicate_member",
+      "line": 7,
+      "column": 8,
+      "message": "duplicate member name 'value' in class Thing"
+    }
+  ]
+}

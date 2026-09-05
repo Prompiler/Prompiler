@@ -1,0 +1,28 @@
+// A realistic commit-message generator: chained string methods
+// (trim/lower/replace), an `Optional<string>` scope, and a bool default.
+
+func slug(title: string): string {
+  return title.trim().lower().replace(" ", "-")
+}
+
+template CommitMessage {
+  variables {
+    title: string
+    scope: Optional<string>
+    breaking: bool = false
+  }
+
+  prompt {
+    {% if breaking %}
+    BREAKING CHANGE: {{ slug(title) }}
+    {% else %}
+    {{ slug(title) }}
+    {% end %}
+    {% if scope.is_empty() %}
+    Scope: none
+    {% else %}
+    Scope: {{ scope.value() }}
+    {% end %}
+    Length: {{ title.length }}
+  }
+}

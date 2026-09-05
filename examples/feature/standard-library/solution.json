@@ -1,0 +1,5 @@
+{
+  "template": "StandardLibrary",
+  "expected_prompt": "    Join: a | b | c\n    Range:\n    0: 10\n    1: 20\n    2: 30\n    Int: 42\n    Float: 3.14\n    Str: true\n    Bool: true\n",
+  "expected_errors": []
+}

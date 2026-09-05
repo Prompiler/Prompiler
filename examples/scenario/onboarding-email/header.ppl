@@ -1,0 +1,13 @@
+// An included sub-template. Its prompt body is written at column 0 so
+// that, when spliced into a parent at the include's column, its output
+// carries no double indentation.
+
+template Header {
+  variables {
+    company: string
+  }
+
+  prompt {
+Welcome to {{ company }}!
+  }
+}

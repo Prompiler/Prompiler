@@ -1,0 +1,21 @@
+// Demonstrates cross-file `import` and `{{ include }}` template
+// composition. The parent binds the child templates' variables via
+// named arguments, so only the parent's own variables are prompted.
+
+import "types.ppl"
+import "header.ppl"
+import "footer.ppl"
+
+template OnboardingEmail {
+  variables {
+    employee: Employee
+    company: string
+    manager: string
+  }
+
+  prompt {
+    {{ include Header(company: company) }}
+    Hi {{ employee.name }}, you are joining as {{ employee.role }} starting {{ employee.start_date }}.
+    {{ include Footer(manager: manager) }}
+  }
+}

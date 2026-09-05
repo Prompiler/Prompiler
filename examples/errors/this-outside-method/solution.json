@@ -1,0 +1,13 @@
+{
+  "template": "ThisOutsideMethod",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "typecheck",
+      "category": "this_outside_method",
+      "line": 8,
+      "column": 10,
+      "message": "`this` used outside a method body"
+    }
+  ]
+}

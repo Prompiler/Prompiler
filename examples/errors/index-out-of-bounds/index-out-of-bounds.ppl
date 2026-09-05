@@ -1,0 +1,11 @@
+// Runtime error (type-checks): array index out of bounds.
+
+template IndexOutOfBounds {
+  variables {
+    items: string[]
+  }
+
+  prompt {
+    {{ items[5] }}
+  }
+}

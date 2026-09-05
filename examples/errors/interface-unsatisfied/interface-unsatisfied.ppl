@@ -1,0 +1,25 @@
+// Compile-time error: `Person` does not structurally satisfy `Named`
+// because it is missing the required `age` field.
+
+interface Named {
+  name: string
+  age: int
+}
+
+class Person {
+  name: string
+}
+
+func label(n: Named): string {
+  return n.name
+}
+
+template InterfaceUnsatisfied {
+  variables {
+    person: Person
+  }
+
+  prompt {
+    {{ label(person) }}
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "template": "TypeMismatch",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "typecheck",
+      "category": "type_mismatch",
+      "line": 8,
+      "column": 10,
+      "message": "operator + cannot be applied to int and string (no implicit coercion)"
+    }
+  ]
+}

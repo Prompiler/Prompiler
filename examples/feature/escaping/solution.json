@@ -1,0 +1,5 @@
+{
+  "template": "Escaping",
+  "expected_prompt": "    Literal interpolation braces: {{ name }}\n    Literal block braces: {% if x %}\n    Literal backslash: C:\\path\n    Mixed: {{ name }} literal, Ada interpolated\n",
+  "expected_errors": []
+}

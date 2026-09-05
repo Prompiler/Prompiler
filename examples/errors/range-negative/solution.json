@@ -1,0 +1,13 @@
+{
+  "template": "RangeNegative",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "runtime",
+      "category": "range_negative",
+      "line": 7,
+      "column": 16,
+      "message": "range(n) requires a non-negative argument, got -1"
+    }
+  ]
+}

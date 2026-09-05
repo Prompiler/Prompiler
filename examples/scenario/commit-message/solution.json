@@ -1,0 +1,5 @@
+{
+  "template": "CommitMessage",
+  "expected_prompt": "    add-user-login\n    Scope: auth\n    Length: 18\n",
+  "expected_errors": []
+}

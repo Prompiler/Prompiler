@@ -1,0 +1,18 @@
+// Demonstrates the whitespace-anchoring rule (§8.4): a single-line
+// value renders in place, while a multi-line value anchors its first
+// line to the expression's column and adds that column to each
+// subsequent line's own relative indentation.
+
+template WhitespaceAnchoring {
+  variables {
+    code: string
+    name: string
+  }
+
+  prompt {
+    Inline: {{ name }} end
+    Block:
+    {{ code }}
+    Done
+  }
+}

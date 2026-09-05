@@ -1,0 +1,13 @@
+{
+  "template": "MissingMethod",
+  "expected_prompt": null,
+  "expected_errors": [
+    {
+      "stage": "typecheck",
+      "category": "interface_unsatisfied",
+      "line": 24,
+      "column": 11,
+      "message": "Square does not satisfy interface Shape (missing method 'area')"
+    }
+  ]
+}

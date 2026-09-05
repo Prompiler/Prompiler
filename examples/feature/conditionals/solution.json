@@ -1,0 +1,5 @@
+{
+  "template": "Conditionals",
+  "expected_prompt": "    Low\n    Default and small\n",
+  "expected_errors": []
+}

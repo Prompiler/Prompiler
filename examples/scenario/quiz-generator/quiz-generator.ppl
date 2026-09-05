@@ -1,0 +1,30 @@
+// A realistic quiz generator: array-of-class, `range` + indexing,
+// arithmetic in the prompt, a for-each loop, and an if/else comparison.
+
+class Question {
+  text: string
+  answer: string
+}
+
+template Quiz {
+  variables {
+    questions: Question[]
+    passing_score: int = 2
+  }
+
+  prompt {
+    You have {{ questions.length }} questions.
+    {% for i in range(questions.length) %}
+    Q{{ i + 1 }}: {{ questions[i].text }}
+    {% end %}
+    Answer key:
+    {% for q in questions %}
+    - {{ q.text }} => {{ q.answer }}
+    {% end %}
+    {% if questions.length >= passing_score %}
+    Quiz length meets passing threshold.
+    {% else %}
+    Quiz is short.
+    {% end %}
+  }
+}

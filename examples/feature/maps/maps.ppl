@@ -1,0 +1,20 @@
+// Demonstrates `map<string, T>`: converting to arrays via `keys()` and
+// `values()` for iteration, and the `length` property.
+
+template MapExample {
+  variables {
+    settings: map<string, string>
+  }
+
+  prompt {
+    Keys:
+    {% for k in settings.keys() %}
+    - {{ k }}
+    {% end %}
+    Values:
+    {% for v in settings.values() %}
+    - {{ v }}
+    {% end %}
+    Size: {{ settings.length }}
+  }
+}
