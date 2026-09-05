@@ -1,6 +1,6 @@
-// Demonstrates `func` declarations: immutable local `var`, nested
-// `if`/`else`, a `for` loop with early `return`, and a forward
-// reference (a function used before its definition).
+// Demonstrates `func` declarations: reassignable local `var`, nested
+// `if`/`else`, a `for` loop with early `return`, pass-by-value arguments,
+// and a forward reference (a function used before its definition).
 
 func sign(n: int): string {
   if (n < 0) {
@@ -28,6 +28,12 @@ func add(a: int, b: int): int {
   return total
 }
 
+func bump(x: int): int {
+  var y = x
+  y = y + 1
+  return y
+}
+
 template Functions {
   variables {
     n: int
@@ -39,6 +45,7 @@ template Functions {
     Sign: {{ sign(n) }}
     Contains: {{ contains(items, needle) }}
     Sum: {{ add(n, 10) }}
+    Bump: {{ n }} -> {{ bump(n) }} -> {{ n }}
     Forward: {{ later(n) }}
   }
 }

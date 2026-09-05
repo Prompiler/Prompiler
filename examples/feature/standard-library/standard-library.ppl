@@ -1,5 +1,5 @@
-// Demonstrates the standard library: `range`, `join`, and the four
-// explicit casts `int` / `float` / `string` / `bool`.
+// Demonstrates the standard library: `range`, `range_from`, `range_step`,
+// `join`, and the four explicit casts `int` / `float` / `string` / `bool`.
 
 template StandardLibrary {
   variables {
@@ -12,6 +12,18 @@ template StandardLibrary {
     Range:
     {% for i in range(numbers.length) %}
     {{ i }}: {{ numbers[i] }}
+    {% end %}
+    From:
+    {% for i in range_from(2, 5) %}
+    {{ i }}
+    {% end %}
+    Stepped:
+    {% for i in range_step(0, 10, 3) %}
+    {{ i }}
+    {% end %}
+    Descending:
+    {% for i in range_step(5, 0, -1) %}
+    {{ i }}
     {% end %}
     Int: {{ int("42") }}
     Float: {{ float("3.14") }}
