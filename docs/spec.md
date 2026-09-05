@@ -136,7 +136,8 @@ Scalar primitives (`int`, `float`, `bool`) carry **no methods**.
 T[]          // e.g. string[], ReviewConfig[]
 ```
 
-Arrays are the **only iterable** type.
+Arrays are the **only iterable** type. Elements are mutable: `a[i] = expr`
+assigns element `i` in place.
 
 ### 4.3 Map
 
@@ -152,6 +153,9 @@ m.values()   // array<T>
 ```
 
 `entries()` is deferred.
+
+Elements are mutable: `m[k] = expr` updates the value for key `k`, or inserts a
+new entry if `k` is absent.
 
 ### 4.4 Enum
 
@@ -382,12 +386,15 @@ Statement set:
 
 - `var name = expr` — declares a **mutable** local binding.
 - `name = expr` — assignment; reassigns a local `var` or parameter in scope.
+- `name[expr] = expr` — element assignment; mutates an array element or map entry
+  in place (arrays and maps are reference types; §7.3).
 - `if (expr) { ... } else { ... }`
 - `for (x in expr) { ... }` — loop variable immutable.
 - `return expr`
 
 No `while`, no expression statements. Reassignment (`name = expr`) is allowed
 for local `var` bindings and parameters — not loop variables, `this`, or fields.
+Element assignment (`name[expr] = expr`) is allowed on arrays and maps only.
 `var` and loop variables are block-scoped; **shadowing an outer name is allowed**.
 
 ### 7.2 Methods
@@ -409,11 +416,12 @@ inside a method body.
 
 ### 7.3 Argument passing
 
-Arguments are passed **by value**. A parameter is initialized with a copy of the
-argument's binding, so reassigning the parameter inside the function does not
-affect the caller's variable. For arrays, maps, and class instances the copy is
-**shallow**: the top-level binding is copied, and nested collections or objects
-are shared with the caller.
+Scalar and enum arguments are passed **by value**: the parameter is a copy, so
+reassigning it does not affect the caller's variable. Arrays and maps are
+**reference types**: the parameter shares the caller's collection, so element
+assignment (`xs[i] = …`, `m[k] = …`) mutates the caller's value. Reassigning the
+parameter itself never affects the caller's binding, regardless of type. Class
+instances have immutable fields, so they are observationally immutable values.
 
 ## 8. Prompt body and templating
 
@@ -668,6 +676,8 @@ diagnostics). The checker produces **positioned diagnostics** for:
 - enum default not a member of the enum
 - type mismatch in expressions (arithmetic, comparison, assignment)
 - reassigning a local `var` or parameter with a value not assignable to its type
+- element assignment (`x[i] = …`) to a value that is not an array or map
+- element assignment with a value not assignable to the element type
 - calling a non-function, wrong arity, or wrong argument type
 - calling a method that does not exist on the receiver's type
 - duplicate member names within a class (a field and a method, or two methods,
@@ -688,10 +698,10 @@ There is **no implicit coercion** between `int` and `float` (or any other types)
 Type changes require an explicit cast (`int(x)` / `float(x)` / `string(x)` /
 `bool(x)`, §10).
 
-### 11.2 Covariance and recursion
+### 11.2 Variance and recursion
 
-- **Array covariance**: `B[]` is assignable to `A[]` when `B` is assignable to `A`
-  (arrays are immutable, so this is sound).
+- **Arrays are invariant**: `B[]` is assignable to `A[]` only when `B` is exactly
+  `A`. Arrays are mutable (element assignment), so covariance would be unsound.
 - **Recursive types**: a class may reference itself only through a collection or an
   `Optional<T>` (e.g. `class Node { next: Optional<Node> }`). A directly recursive
   non-collection, non-`Optional` field is a compile error. This restriction applies
@@ -795,7 +805,7 @@ internal/adapters/lsp     # LSP adapter
 
 Evaluation can fail at runtime even though the program type-checks:
 
-- array index out of bounds
+- array index out of bounds (read or element assignment)
 - division or modulo by zero
 - integer overflow (signed 64-bit; arbitrary precision is a future extension)
 - `range(stop)` with a negative `stop` (single-argument form)
