@@ -7,9 +7,9 @@
 ## 1. Overview
 
 Prompiler is a dedicated, strongly-typed markup language for authoring prompts. A
-Prompiler program declares reusable types (`enum`, `class`, `interface`) and
-functions, then defines `template` blocks that render a final prompt string from
-typed inputs.
+Prompiler program declares reusable types (`enum`, `class`, `interface`) with
+methods, and free functions, then defines `template` blocks that render a final
+prompt string from typed inputs.
 
 Prompiler is a **compiler**:
 
@@ -90,7 +90,7 @@ Keywords (reserved):
 
 ```
 import enum class interface func template variables prompt include
-var if else for in return true false none
+var if else for in return this true false none
 string int float bool map array Optional
 ```
 
@@ -168,32 +168,50 @@ their own type.
 
 ### 4.5 Class
 
-A class is a named set of typed fields:
+A class is a named set of typed fields and methods:
 
 ```
 class ReviewConfig {
   strictness: Difficulty
   files: string[]
   max_issues: int
+
+  func is_strict(): bool {
+    return this.strictness == Difficulty.Hard
+  }
 }
 ```
 
-Fields are immutable.
+Fields are immutable. Methods are declared with `func` inside the class body and
+may read fields (and call sibling methods) through the implicit receiver `this`.
+`this` is read-only and valid only within a method body. Method bodies follow the
+same rules as functions (§7).
 
 ### 4.6 Interface
 
-An interface declares a set of **required attributes (fields)**:
+An interface declares a set of **required attributes (fields) and method
+signatures**:
 
 ```
 interface Named {
   name: string
+  func label(): string
 }
 ```
 
+A method signature has the same form as a method but no body (§7).
+
 Interfaces use **structural typing** (TypeScript-style). A class satisfies an
 interface if and only if it provides **at least** the interface's fields with
-compatible types; it may provide additional fields. There is no explicit
-`implements` clause.
+compatible types **and** all of its method signatures; it may provide additional
+fields or methods. There is no explicit `implements` clause.
+
+A class method satisfies an interface method signature when the **name, arity,
+and positional parameter types** match; **parameter names are not significant**
+(calls are positional). The **return type is covariant**: the class method may
+return any type assignable to the signature's return type — for example, a method
+declared to return a concrete class satisfies a signature that returns an
+interface that class satisfies.
 
 Interfaces can be used anywhere a type is expected. They are the sanctioned
 mechanism for expressing choice/alternatives: model the alternatives as classes
@@ -213,7 +231,9 @@ strings:
 | `map<string, T>` | `keys()`, `values()`, `length` |
 
 `length` is a property; the rest are methods. `OPEN`: exact method list is
-provisional.
+provisional. This built-in method surface is **fixed**: built-in types cannot be
+extended with new methods or have their methods overridden, unlike user-defined
+classes, which declare their own methods (§4.5).
 
 `Optional<T>` is a builtin type constructor that boxes an absent-or-present value:
 
@@ -259,8 +279,15 @@ class Name {
   field: Type
   field: Type
   ...
+  func method(param: Type, ...): ReturnType {
+    statement
+    ...
+  }
 }
 ```
+
+Methods use the `func` keyword inside the class body and share the function-body
+rules of §7; `this` denotes the receiver.
 
 ### 5.3 `interface`
 
@@ -269,10 +296,12 @@ interface Name {
   field: Type
   field: Type
   ...
+  func method(param: Type, ...): ReturnType
 }
 ```
 
-Interface fields are required attributes.
+Interface fields are required attributes; method signatures (no body) are
+required methods.
 
 ### 5.4 `func` (function)
 
@@ -283,7 +312,10 @@ func name(param: Type, ...): ReturnType {
 }
 ```
 
-See §7.
+See §7. The `func` keyword appears in two contexts: a **top-level free function**
+(as above), and a **method** declared inside a `class` body (§5.2) or as a
+signature inside an `interface` (§5.3). Both share the same parameter, return
+type, and body rules.
 
 ### 5.5 `template`
 
@@ -354,6 +386,23 @@ Statement set:
 
 No reassignment, no `while`, no expression statements. `var` and loop variables
 are block-scoped; **shadowing an outer name is allowed**.
+
+### 7.2 Methods
+
+Methods declared inside a `class` body (§5.2) follow the same rules as functions:
+
+- Pure, no I/O or side effects; read-only over `this` and its fields.
+- Non-recursive: the combined call graph of functions **and** methods must be
+  acyclic. A method may call other methods or functions, including forward
+  references, but not itself, directly or transitively.
+- No overloading: one method per name per class, and a field and a method may not
+  share a name.
+- Explicit, required return type.
+
+Within a method body, `this` is an implicit, immutable receiver whose type is the
+enclosing class. Fields and sibling methods are reached through `this` (`this.x`,
+`this.other()`); there is no implicit bare-name resolution. `this` is valid only
+inside a method body.
 
 ## 8. Prompt body and templating
 
@@ -508,7 +557,8 @@ Primary expressions:
 - call: `name(args)` — user-defined and standard-library functions
 - cast: `int(x)` / `float(x)` / `string(x)` / `bool(x)` — builtin type names in
   call position
-- method call: `expr.method(args)` (builtin classes only)
+- method call: `expr.method(args)` — builtin classes, user-defined class methods,
+  and interface signatures
 - parenthesized: `(expr)`
 
 Operator semantics:
@@ -589,8 +639,13 @@ diagnostics). The checker produces **positioned diagnostics** for:
 - enum default not a member of the enum
 - type mismatch in expressions (arithmetic, comparison, assignment)
 - calling a non-function, wrong arity, or wrong argument type
+- calling a method that does not exist on the receiver's type
+- duplicate member names within a class (a field and a method, or two methods,
+  with the same name)
+- `this` used outside a method body
 - iterating over a non-array (maps must be converted via `keys()`/`values()`)
-- interface satisfaction failures at assignment sites
+- interface satisfaction failures at assignment sites (a missing or mistyped
+  field or method, or a non-covariant method return)
 
 ### 11.1 Assignability
 
@@ -609,7 +664,9 @@ Type changes require an explicit cast (`int(x)` / `float(x)` / `string(x)` /
   (arrays are immutable, so this is sound).
 - **Recursive types**: a class may reference itself only through a collection or an
   `Optional<T>` (e.g. `class Node { next: Optional<Node> }`). A directly recursive
-  non-collection, non-`Optional` field is a compile error.
+  non-collection, non-`Optional` field is a compile error. This restriction applies
+  to field storage only; method signatures may reference the enclosing class type
+  freely.
 
 ## 12. Compiler pipeline
 
@@ -637,9 +694,9 @@ that the LSP can report **all** errors in a file at once.
 The compiler core is reused by the LSP server. v1 features:
 
 - **Diagnostics** — syntax errors + type errors, with spans.
-- **Hover** — type information for variables, fields, and functions.
-- **Completion** — variables, fields, enum members, and functions in scope.
-- **Go-to-definition** — types, functions, variables, and fields.
+- **Hover** — type information for variables, fields, methods, and functions.
+- **Completion** — variables, fields, enum members, methods, and functions in scope.
+- **Go-to-definition** — types, functions, methods, variables, and fields.
 
 Deferred: rename, find-references, workspace symbol search.
 
