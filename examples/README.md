@@ -119,11 +119,12 @@ need to sort or otherwise normalize these fixtures.
 | §4.4 Enum | `feature/enums`, `scenario/code-review`, `scenario/weekly-status-report` |
 | §4.5 Class | `feature/classes`, `feature/methods`, `scenario/code-review`, `scenario/quiz-generator` |
 | §4.6 Interface (structural typing: fields + method signatures, covariant returns) | `feature/interfaces`, `feature/methods`, `errors/interface-unsatisfied`, `errors/missing-method` |
-| §4.7 Builtin methods + `Optional<T>` | `feature/classes`, `feature/maps`, `feature/optional`, `scenario/commit-message` |
+| §4.7 Builtin methods + `Optional<T>` | `feature/classes`, `feature/maps`, `feature/optional`, `feature/string-methods`, `feature/builtin-composition`, `scenario/commit-message` |
 | §5.4 `func` | `feature/functions`, `feature/methods`, `scenario/commit-message` |
 | §5.5 `template` + `description` | all examples; `description` in `feature/interpolation` and `scenario/code-review` |
 | §6 Variables, defaults, required vs optional | `feature/interpolation`, `feature/enums`, `errors/default-not-assignable` |
-| §7 Functions & methods (var/if/for/return, forward refs, `this`) | `feature/functions`, `feature/methods` |
+| §7 Functions & methods (var/reassignment/if/for/return, forward refs, `this`) | `feature/functions`, `feature/methods` |
+| §7.3 Argument passing (by value, shallow copy) | `feature/functions` |
 | §8.1 Interpolation string forms | `feature/interpolation` |
 | §8.2 Loops | `feature/loops`, `scenario/code-review`, `scenario/quiz-generator`, `scenario/weekly-status-report` |
 | §8.3 Conditionals | `feature/conditionals`, `scenario/commit-message`, `scenario/code-review`, `scenario/quiz-generator` |
@@ -131,11 +132,12 @@ need to sort or otherwise normalize these fixtures.
 | §8.5 Escaping | `feature/escaping` |
 | §8.6 `include` | `scenario/onboarding-email`, `errors/cyclic-include` |
 | §9 Expressions + operator precedence | `feature/literals-expressions` |
-| §10 Standard library (`range`/`join`/casts) | `feature/standard-library`, `scenario/code-review` |
+| §10 Standard library (`range`/`range_from`/`range_step`/`join`/casts) | `feature/standard-library`, `scenario/code-review` |
 | §10.1 Loop index via `range` | `feature/loops`, `scenario/code-review`, `scenario/quiz-generator` |
+| §10.2 `range`, `range_from`, `range_step` | `feature/standard-library`, `feature/builtin-composition`, `errors/range-step-zero` |
 | §2.1 Imports | `scenario/onboarding-email` |
 | §11 Type-checking diagnostics | `errors/type-mismatch`, `errors/iterate-non-array`, `errors/unknown-type`, `errors/interface-unsatisfied`, `errors/default-not-assignable`, `errors/duplicate-name`, `errors/cyclic-include`, `errors/unknown-method`, `errors/duplicate-member`, `errors/this-outside-method`, `errors/missing-method` |
-| §16.1 Runtime errors | `errors/index-out-of-bounds`, `errors/division-by-zero`, `errors/range-negative`, `errors/failed-cast`, `errors/unwrap-empty-optional` |
+| §16.1 Runtime errors | `errors/index-out-of-bounds`, `errors/division-by-zero`, `errors/range-negative`, `errors/range-step-zero`, `errors/failed-cast`, `errors/unwrap-empty-optional` |
 | §16.2 Template composition (DAG) | `scenario/onboarding-email`, `errors/cyclic-include` |
 
 ## Deliberately-absent features
