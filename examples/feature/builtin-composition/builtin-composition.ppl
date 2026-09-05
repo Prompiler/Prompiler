@@ -1,0 +1,25 @@
+// Combines builtins and methods: `join` over map `keys()`/`values()`,
+// chained string methods, the array `length` property, reverse iteration
+// via `range_step` + indexing, and an `Optional` unwrapped into a string
+// method.
+
+template BuiltinComposition {
+  variables {
+    tags: map<string, string>
+    raw: string
+    words: string[]
+    title: Optional<string>
+  }
+
+  prompt {
+    KeysJoined: {{ join(tags.keys(), ", ") }}
+    ValuesJoined: {{ join(tags.values(), " | ") }}
+    Clean: {{ raw.trim().upper() }}
+    Count: {{ words.length }}
+    Reversed:
+    {% for i in range_step(words.length - 1, -1, -1) %}
+    - {{ words[i] }}
+    {% end %}
+    TitleUpper: {{ title.value().upper() }}
+  }
+}

@@ -1,0 +1,18 @@
+// Demonstrates the built-in `string` method surface: the `length`
+// property and the `upper()`, `lower()`, `trim()`, and `replace(old, new)`
+// methods.
+
+template StringMethods {
+  variables {
+    name: string
+    padded: string
+  }
+
+  prompt {
+    Length: {{ name.length }}
+    Upper: {{ name.upper() }}
+    Lower: {{ name.lower() }}
+    Trim: {{ padded.trim() }}
+    Replace: {{ name.replace("H", "J") }}
+  }
+}
