@@ -1,6 +1,5 @@
-// An included sub-template. Its prompt body is written at column 0 so
-// that, when spliced into a parent at the include's column, its output
-// carries no double indentation.
+// An included sub-template. Its prompt body is dedented (§8.4) before it is
+// spliced into the parent at the include's (dedented) column.
 
 template Header {
   variables {

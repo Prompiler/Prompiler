@@ -1,5 +1,5 @@
 {
   "template": "Quiz",
-  "expected_prompt": "    You have 3 questions.\n    Q1: What is 1+1?\n    Q2: Capital of France?\n    Q3: Year of the moon landing?\n    Answer key:\n    - What is 1+1? => 2\n    - Capital of France? => Paris\n    - Year of the moon landing? => 1969\n    Quiz length meets passing threshold.\n",
+  "expected_prompt": "You have 3 questions.\nQ1: What is 1+1?\nQ2: Capital of France?\nQ3: Year of the moon landing?\nAnswer key:\n- What is 1+1? => 2\n- Capital of France? => Paris\n- Year of the moon landing? => 1969\nQuiz length meets passing threshold.\n",
   "expected_errors": []
 }

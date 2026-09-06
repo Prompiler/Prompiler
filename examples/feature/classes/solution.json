@@ -1,5 +1,5 @@
 {
   "template": "ClassExample",
-  "expected_prompt": "    Street: Main St\n    City: Springfield\n    Zip: 12345\n    Full: Main St, Springfield\n    Street length: 7\n",
+  "expected_prompt": "Street: Main St\nCity: Springfield\nZip: 12345\nFull: Main St, Springfield\nStreet length: 7\n",
   "expected_errors": []
 }

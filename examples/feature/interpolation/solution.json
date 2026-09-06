@@ -1,5 +1,5 @@
 {
   "template": "Interpolate",
-  "expected_prompt": "    Name: Ada\n    Age: 36\n    Score: 3.5\n    Active: true\n    Level: Hard\n    Greeting: hello\n",
+  "expected_prompt": "Name: Ada\nAge: 36\nScore: 3.5\nActive: true\nLevel: Hard\nGreeting: hello\n",
   "expected_errors": []
 }

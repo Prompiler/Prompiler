@@ -1,5 +1,5 @@
 {
   "template": "InterfaceExample",
-  "expected_prompt": "    Name: Ada\n",
+  "expected_prompt": "Name: Ada\n",
   "expected_errors": []
 }

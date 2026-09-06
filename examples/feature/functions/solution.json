@@ -1,5 +1,5 @@
 {
   "template": "Functions",
-  "expected_prompt": "    Sign: negative\n    Contains: true\n    Sum: 7\n    Bump: -3 -> -2 -> -3\n    Forward: -6\n",
+  "expected_prompt": "Sign: negative\nContains: true\nSum: 7\nBump: -3 -> -2 -> -3\nForward: -6\n",
   "expected_errors": []
 }

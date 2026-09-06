@@ -1,5 +1,5 @@
 {
   "template": "ReferenceValue",
-  "expected_prompt": "    Scalar: 5 -> 6 -> 5\n    Array: 10 -> 11 -> 11\n    Map: 1 -> 2 -> 2\n    Rebound: 99 11\n",
+  "expected_prompt": "Scalar: 5 -> 6 -> 5\nArray: 10 -> 11 -> 11\nMap: 1 -> 2 -> 2\nRebound: 99 11\n",
   "expected_errors": []
 }

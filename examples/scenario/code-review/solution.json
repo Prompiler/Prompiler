@@ -1,5 +1,5 @@
 {
   "template": "CodeReview",
-  "expected_prompt": "    Review the following Go code for correctness.\n    Strictness: Hard\n    File list: main.go, util.go\n    Files:\n    - main.go\n    - util.go\n    Limit findings to 5 issues.\n    Be exhaustive and flag style nits.\n",
+  "expected_prompt": "Review the following Go code for correctness.\nStrictness: Hard\nFile list: main.go, util.go\nFiles:\n- main.go\n- util.go\nLimit findings to 5 issues.\nBe exhaustive and flag style nits.\n",
   "expected_errors": []
 }

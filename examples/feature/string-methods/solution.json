@@ -1,5 +1,5 @@
 {
   "template": "StringMethods",
-  "expected_prompt": "    Length: 5\n    Upper: HELLO\n    Lower: hello\n    Trim: hi\n    Replace: Jello\n",
+  "expected_prompt": "Length: 5\nUpper: HELLO\nLower: hello\nTrim: hi\nReplace: Jello\n",
   "expected_errors": []
 }

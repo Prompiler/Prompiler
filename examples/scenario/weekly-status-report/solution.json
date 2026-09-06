@@ -1,5 +1,5 @@
 {
   "template": "WeeklyReport",
-  "expected_prompt": "    Weekly status report\n    Tasks:\n    - Write spec (Done)\n    - Implement lexer (InProgress)\n    - Deploy (Blocked)\n    BLOCKED: Deploy\n    Metadata:\n    team: core\n    week: 2026-W36\n",
+  "expected_prompt": "Weekly status report\nTasks:\n- Write spec (Done)\n- Implement lexer (InProgress)\n- Deploy (Blocked)\nBLOCKED: Deploy\nMetadata:\nteam: core\nweek: 2026-W36\n",
   "expected_errors": []
 }

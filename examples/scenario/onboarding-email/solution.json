@@ -1,5 +1,5 @@
 {
   "template": "OnboardingEmail",
-  "expected_prompt": "    Welcome to Acme!\n    Hi Ada, you are joining as Engineer starting 2026-09-01.\n    Your manager: Carla\n",
+  "expected_prompt": "Welcome to Acme!\nHi Ada, you are joining as Engineer starting 2026-09-01.\nYour manager: Carla\n",
   "expected_errors": []
 }

@@ -1,5 +1,5 @@
 {
   "template": "BuiltinComposition",
-  "expected_prompt": "    KeysJoined: theme, lang\n    ValuesJoined: dark | en\n    Clean: HELLO WORLD\n    Count: 3\n    Reversed:\n    - three\n    - two\n    - one\n    TitleUpper: PROMPILER\n",
+  "expected_prompt": "KeysJoined: theme, lang\nValuesJoined: dark | en\nClean: HELLO WORLD\nCount: 3\nReversed:\n- three\n- two\n- one\nTitleUpper: PROMPILER\n",
   "expected_errors": []
 }

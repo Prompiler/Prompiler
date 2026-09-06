@@ -1,4 +1,4 @@
-// An included sub-template (column-0 body; see header.ppl).
+// An included sub-template (see header.ppl).
 
 template Footer {
   variables {

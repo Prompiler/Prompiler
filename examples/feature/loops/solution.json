@@ -1,5 +1,5 @@
 {
   "template": "Loops",
-  "expected_prompt": "    Items:\n    - apple\n    - banana\n    - cherry\n    Indexed:\n    0: apple\n    1: banana\n    2: cherry\n",
+  "expected_prompt": "Items:\n- apple\n- banana\n- cherry\nIndexed:\n0: apple\n1: banana\n2: cherry\n",
   "expected_errors": []
 }

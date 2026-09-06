@@ -1,5 +1,5 @@
 {
   "template": "MapExample",
-  "expected_prompt": "    Keys:\n    - theme\n    - lang\n    Values:\n    - dark\n    - en\n    Size: 2\n",
+  "expected_prompt": "Keys:\n- theme\n- lang\nValues:\n- dark\n- en\nSize: 2\n",
   "expected_errors": []
 }

@@ -1,5 +1,5 @@
 {
   "template": "StandardLibrary",
-  "expected_prompt": "    Join: a | b | c\n    Range:\n    0: 10\n    1: 20\n    2: 30\n    From:\n    2\n    3\n    4\n    Stepped:\n    0\n    3\n    6\n    9\n    Descending:\n    5\n    4\n    3\n    2\n    1\n    Int: 42\n    Float: 3.14\n    Str: true\n    Bool: true\n",
+  "expected_prompt": "Join: a | b | c\nRange:\n0: 10\n1: 20\n2: 30\nFrom:\n2\n3\n4\nStepped:\n0\n3\n6\n9\nDescending:\n5\n4\n3\n2\n1\nInt: 42\nFloat: 3.14\nStr: true\nBool: true\n",
   "expected_errors": []
 }

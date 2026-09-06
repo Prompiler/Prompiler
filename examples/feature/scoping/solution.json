@@ -1,5 +1,5 @@
 {
   "template": "Scoping",
-  "expected_prompt": "    Global: 5\n    Scoped: 5\n",
+  "expected_prompt": "Global: 5\nScoped: 5\n",
   "expected_errors": []
 }

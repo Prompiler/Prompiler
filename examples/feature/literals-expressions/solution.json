@@ -1,5 +1,5 @@
 {
   "template": "Expressions",
-  "expected_prompt": "    Mul: 17\n    Group: 39\n    Div: 5.5\n    Mod: 2\n    Neg: -11\n    Not: true\n    Le: true\n    Ge: true\n    Ne: true\n    And: true\n    Or: false\n    CastInt: 2\n    CastStr: 11\n    CastBool: true\n    Upper: GO\n    Len: 3\n    Call: 33\n    X: 5\n    W: 1.5\n    Concat: go-rust\n",
+  "expected_prompt": "Mul: 17\nGroup: 39\nDiv: 5.5\nMod: 2\nNeg: -11\nNot: true\nLe: true\nGe: true\nNe: true\nAnd: true\nOr: false\nCastInt: 2\nCastStr: 11\nCastBool: true\nUpper: GO\nLen: 3\nCall: 33\nX: 5\nW: 1.5\nConcat: go-rust\n",
   "expected_errors": []
 }

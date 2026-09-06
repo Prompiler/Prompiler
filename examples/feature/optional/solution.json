@@ -1,5 +1,5 @@
 {
   "template": "OptionalExample",
-  "expected_prompt": "    Nickname: none\n    Tag: beta\n    Wrapped: hello\n",
+  "expected_prompt": "Nickname: none\nTag: beta\nWrapped: hello\n",
   "expected_errors": []
 }
