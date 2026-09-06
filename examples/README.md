@@ -86,8 +86,10 @@ diagnostics once an implementation exists.
 The spec's whitespace rule (§8.4) is preserved exactly. The expected outputs in
 this directory assume the following concrete reading:
 
-- Prompt-body literal text is emitted verbatim, each line keeping its written
-  indentation and a trailing newline.
+- The `prompt` body is **dedented** first: the common leading whitespace over
+  non-blank lines is stripped, so the least-indented line sits at column 0.
+- Prompt-body literal text is then emitted verbatim, each line keeping its
+  remaining indentation and a trailing newline.
 - `{{ expr }}` replaces the expression in place. A **single-line** value is
   inserted directly; a **multi-line** value anchors its first line at the
   expression's column and adds that column to each subsequent line's own
@@ -96,8 +98,7 @@ this directory assume the following concrete reading:
   and emit nothing (their trailing newline is consumed).
 - `{{ include Child(...) }}` on its own line behaves like a control tag for
   newline purposes: the line is replaced by the child's rendered output, spliced
-  at the include's column. To keep splicing unambiguous, included templates in
-  `scenario/onboarding-email` write their prompt bodies at column 0.
+  at the include's (dedented) column.
 
 ### Known assumption: map ordering
 

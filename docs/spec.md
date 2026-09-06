@@ -473,10 +473,15 @@ the body.
 
 ### 8.4 Whitespace rule
 
-Indentation is **preserved exactly as written**. Literal text is emitted verbatim
-(including its leading whitespace), and each construct is replaced in place by its
-rendered output, which inherits the indentation of the expression itself — the
-leading whitespace before the opening delimiter (`{{` or `{%`).
+The `prompt` body is **dedented** before rendering: the common leading whitespace
+(the minimum indentation over non-blank lines) is stripped from every line, so the
+least-indented line sits at column 0. Relative indentation between lines is
+preserved.
+
+After dedenting, literal text is emitted verbatim (including its remaining leading
+whitespace), and each construct is replaced in place by its rendered output, which
+inherits the indentation of the expression itself — the leading whitespace before
+the opening delimiter (`{{` or `{%`).
 
 - `{{ expr }}` renders in place; its output starts at the expression's own column.
 - Multi-line output is **anchored**: the first line sits at the expression's
@@ -497,11 +502,12 @@ template Greet {
 }
 ```
 
-If `name` renders `World`, the output is:
+The body lines share a common 4-space indent, which is stripped. If `name` renders
+`World`, the output is:
 
 ```
-    Hello World!
-    End
+Hello World!
+End
 ```
 
 Example — a multi-line value `code` whose text is:
@@ -523,15 +529,15 @@ template Code {
 }
 ```
 
-The `{{ code }}` sits at column 4. Anchored output:
+After dedenting, `{{ code }}` sits at column 0. Anchored output:
 
 ```
-    def foo():
-        return 1
+def foo():
+    return 1
 ```
 
-The first line gets the expression's 4-space indent; the second line keeps its
-internal 4-space indent **plus** the base, yielding 8 spaces.
+The first line sits at column 0; the second line keeps its internal 4-space indent
+**plus** the base (0), yielding 4 spaces.
 
 ### 8.5 Escaping
 
