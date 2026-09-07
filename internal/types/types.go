@@ -115,6 +115,13 @@ func (c *Class) String() string {
 func (i *Interface) String() string { return i.Name }
 func (v *TypeVar) String() string   { return v.Name }
 
+// Invalid is a placeholder type for an expression that already failed to
+// type-check; it suppresses cascading diagnostics in enclosing expressions.
+type Invalid struct{}
+
+func (Invalid) String() string { return "?" }
+func (Invalid) isType()        {}
+
 func (Primitive) isType()  {}
 func (*Array) isType()     {}
 func (*Map) isType()       {}
@@ -124,11 +131,37 @@ func (*Class) isType()     {}
 func (*Interface) isType() {}
 func (*TypeVar) isType()   {}
 
+// Compile-time interface satisfaction assertions.
+var (
+	_ Type = Primitive(0)
+	_ Type = (*Array)(nil)
+	_ Type = (*Map)(nil)
+	_ Type = (*Optional)(nil)
+	_ Type = (*Enum)(nil)
+	_ Type = (*Class)(nil)
+	_ Type = (*Interface)(nil)
+	_ Type = (*TypeVar)(nil)
+	_ Type = Invalid{}
+)
+
 // MethodResolver resolves a method signature for a receiver type. Implemented
 // by the builtin registry (and consulted for user-defined classes). This seam
 // keeps the types package free of a builtin dependency.
 type MethodResolver interface {
 	LookupMethod(t Type, name string) (MethodSig, bool)
+}
+
+// FunctionResolver resolves a builtin function signature (stdlib + casts). Kept
+// behind an interface so the checker does not import the builtin package.
+type FunctionResolver interface {
+	LookupFunction(name string) (FuncSig, bool)
+}
+
+// Builtins is the seam the checker depends on for builtin methods and functions.
+// The builtin registry implements it; the analyzer injects it.
+type Builtins interface {
+	MethodResolver
+	FunctionResolver
 }
 
 // FuncSig describes a function signature (free function, stdlib, or cast).

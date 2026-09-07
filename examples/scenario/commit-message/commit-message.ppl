@@ -2,7 +2,7 @@
 // (trim/lower/replace), an `Optional<string>` scope, and a bool default.
 
 func slug(title: string): string {
-  return title.trim().lower().replace(" ", "-")
+  return title.trim().lower().replace_all(" ", "-")
 }
 
 template CommitMessage {

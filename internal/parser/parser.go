@@ -656,6 +656,9 @@ func (p *Parser) parsePrimary() ast.Expr {
 		return p.parseMapLit()
 	case token.IDENT:
 		p.advance()
+		if p.match(token.LBRACE) {
+			return p.parseClassLit(tok.Lexeme, start)
+		}
 		ident := &ast.Ident{Base: ast.Base{S: p.span(start)}, Name: tok.Lexeme}
 		if p.match(token.LT) {
 			if typeArgs, ok := p.tryParseTypeArgs(); ok {
@@ -680,6 +683,30 @@ func (p *Parser) parsePrimary() ast.Expr {
 		p.advance()
 		return &ast.Ident{Base: ast.Base{S: p.span(start)}, Name: "?"}
 	}
+}
+
+func (p *Parser) parseClassLit(name string, start token.Position) ast.Expr {
+	p.expect(token.LBRACE)
+	var fields []ast.FieldInit
+	if p.cur().Type != token.RBRACE {
+		fields = append(fields, p.parseFieldInit())
+		for p.match(token.COMMA) {
+			p.advance()
+			if p.match(token.RBRACE) {
+				break // trailing comma
+			}
+			fields = append(fields, p.parseFieldInit())
+		}
+	}
+	p.expect(token.RBRACE)
+	return &ast.ClassLit{Base: ast.Base{S: p.span(start)}, TypeName: name, Fields: fields}
+}
+
+func (p *Parser) parseFieldInit() ast.FieldInit {
+	name := p.expect(token.IDENT)
+	p.expect(token.COLON)
+	value := p.parseExpr()
+	return ast.FieldInit{Name: name.Lexeme, Value: value}
 }
 
 func (p *Parser) parseArrayLit() ast.Expr {
