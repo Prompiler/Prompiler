@@ -2,7 +2,7 @@ BINARY := prompiler
 GO     ?= go
 ROOT   ?= .
 
-.PHONY: help build install clean fmt vet lint gen run \
+.PHONY: help build install clean fmt vet lint gen run tui \
         unit integration e2e test ci
 
 .DEFAULT_GOAL := help
@@ -45,6 +45,9 @@ ci: lint unit integration e2e ## Run everything the CI pipeline runs
 
 run: build ## Render a template (e.g. make run T=Interpolate ROOT=examples/feature/interpolation)
 	./bin/$(BINARY) run -root $(ROOT) $(T)
+
+tui: build ## Launch the interactive TUI
+	./bin/$(BINARY)
 
 clean: ## Remove build artifacts
 	rm -rf bin/
