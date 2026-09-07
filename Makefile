@@ -43,7 +43,7 @@ test: ## Run the full suite (unit + integration)
 ci: lint unit integration e2e ## Run everything the CI pipeline runs
 
 run: build ## Render a template (e.g. make run T=Interpolate ROOT=examples/feature/interpolation)
-	./bin/$(BINARY) run $(T) $(ROOT)
+	./bin/$(BINARY) run -root $(ROOT) $(T)
 
 clean: ## Remove build artifacts
 	rm -rf bin/

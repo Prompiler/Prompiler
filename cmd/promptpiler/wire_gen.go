@@ -8,6 +8,7 @@ package main
 
 import (
 	"github.com/Jh123x/prompiler/internal/adapters/source"
+	"github.com/Jh123x/prompiler/internal/adapters/tui"
 	"github.com/Jh123x/prompiler/internal/builtin"
 	"github.com/Jh123x/prompiler/internal/domain"
 )
@@ -20,4 +21,13 @@ func initializeApplication() (*domain.Application, error) {
 	registry := builtin.NewRegistry()
 	application := domain.NewApplication(sourceProvider, registry)
 	return application, nil
+}
+
+// initializeTUI wires the TUI front end over the application shell.
+func initializeTUI() (*tui.App, error) {
+	sourceProvider := source.NewFSSource()
+	registry := builtin.NewRegistry()
+	application := domain.NewApplication(sourceProvider, registry)
+	app := tui.NewApp(application)
+	return app, nil
 }
