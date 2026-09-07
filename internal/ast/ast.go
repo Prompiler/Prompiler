@@ -115,14 +115,9 @@ type Ident struct {
 	Name string
 }
 
-// EnumMember is an enum member access `Difficulty.Easy`.
-type EnumMember struct {
-	Base
-	Enum   string
-	Member string
-}
-
-// FieldAccess is `expr.field`.
+// FieldAccess is `expr.field`. Enum member access (`Difficulty.Easy`) is also
+// represented as FieldAccess{Recv: Ident{Difficulty}, Field: Easy}; the
+// resolver/checker disambiguates by whether the receiver names an enum type.
 type FieldAccess struct {
 	Base
 	Recv  Expr
@@ -178,7 +173,6 @@ func (*ArrayLit) exprNode()    {}
 func (*MapLit) exprNode()      {}
 func (*ClassLit) exprNode()    {}
 func (*Ident) exprNode()       {}
-func (*EnumMember) exprNode()  {}
 func (*FieldAccess) exprNode() {}
 func (*Index) exprNode()       {}
 func (*Call) exprNode()        {}
