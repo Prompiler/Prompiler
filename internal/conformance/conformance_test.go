@@ -11,6 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/Jh123x/prompiler/internal/adapters/jsonvalue"
 	"github.com/Jh123x/prompiler/internal/builtin"
 	"github.com/Jh123x/prompiler/internal/domain"
@@ -30,9 +33,6 @@ type solution struct {
 }
 
 func TestConformance(t *testing.T) {
-	if testing.Short() {
-		t.Skip("integration test (fixture conformance) skipped in -short mode")
-	}
 	dirs := map[string][]string{}
 	err := filepath.Walk("../../examples", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -43,9 +43,7 @@ func TestConformance(t *testing.T) {
 		}
 		return nil
 	})
-	if err != nil {
-		t.Fatalf("walk: %v", err)
-	}
+	require.NoError(t, err)
 
 	for dir, paths := range dirs {
 		solData, err := os.ReadFile(filepath.Join(dir, "solution.json"))
@@ -53,53 +51,37 @@ func TestConformance(t *testing.T) {
 			continue
 		}
 		var sol solution
-		if err := json.Unmarshal(solData, &sol); err != nil {
-			t.Errorf("%s: bad solution.json: %v", dir, err)
-			continue
-		}
+		require.NoError(t, json.Unmarshal(solData, &sol))
 
-		src := domain.SourceSet{}
-		for _, p := range paths {
-			data, err := os.ReadFile(p)
-			if err != nil {
-				t.Errorf("%s: read %s: %v", dir, p, err)
-				continue
+		t.Run(filepath.Base(dir), func(t *testing.T) {
+			src := domain.SourceSet{}
+			for _, p := range paths {
+				data, err := os.ReadFile(p)
+				require.NoError(t, err)
+				src[filepath.Base(p)] = string(data)
 			}
-			src[filepath.Base(p)] = string(data)
-		}
-		prog, diags := domain.Analyze(dir, src, builtin.NewRegistry())
+			prog, diags := domain.Analyze(dir, src, builtin.NewRegistry())
 
-		if sol.ExpectedPrompt != nil {
-			checkValid(t, dir, sol.Template, *sol.ExpectedPrompt, prog, diags)
-		} else {
-			checkErrors(t, dir, sol.Template, sol.ExpectedErrors, prog, diags)
-		}
+			if sol.ExpectedPrompt != nil {
+				checkValid(t, dir, sol.Template, *sol.ExpectedPrompt, prog, diags)
+			} else {
+				checkErrors(t, dir, sol.Template, sol.ExpectedErrors, prog, diags)
+			}
+		})
 	}
 }
 
 func checkValid(t *testing.T, dir, name, want string, prog *domain.Program, diags []token.Diagnostic) {
 	t.Helper()
-	if len(diags) > 0 {
-		t.Errorf("%s: expected clean analysis, got %d diagnostics", dir, len(diags))
-		return
-	}
-	if prog == nil {
-		t.Errorf("%s: no program", dir)
-		return
-	}
+	require.Empty(t, diags, "%s: expected clean analysis", dir)
+	require.NotNil(t, prog, "%s: no program", dir)
+
 	inputs, err := collectInputs(dir, prog, name)
-	if err != nil {
-		t.Errorf("%s: %v", dir, err)
-		return
-	}
+	require.NoError(t, err, "%s: collect inputs", dir)
+
 	out, rerr := eval.NewComposer(prog.Files, prog.Sem).Render(name, inputs)
-	if rerr != nil {
-		t.Errorf("%s: render error %s", dir, rerr.Category)
-		return
-	}
-	if out != want {
-		t.Errorf("%s:\n got %q\nwant %q", dir, out, want)
-	}
+	require.Nil(t, rerr, "%s: render error %s", dir, rerr)
+	assert.Equal(t, want, out, "%s: rendered output", dir)
 }
 
 func checkErrors(t *testing.T, dir, name string, expected []errorEntry, prog *domain.Program, diags []token.Diagnostic) {
@@ -116,17 +98,14 @@ func checkErrors(t *testing.T, dir, name string, expected []errorEntry, prog *do
 			got = append(got, string(d.Stage)+":"+string(d.Category))
 		}
 	} else if prog != nil {
-		inputs, err := collectInputs(dir, prog, name)
-		if err == nil {
+		if inputs, err := collectInputs(dir, prog, name); err == nil {
 			if _, rerr := eval.NewComposer(prog.Files, prog.Sem).Render(name, inputs); rerr != nil {
 				got = append(got, "runtime:"+string(rerr.Category))
 			}
 		}
 	}
 	sort.Strings(got)
-	if strings.Join(want, ",") != strings.Join(got, ",") {
-		t.Errorf("%s: expected errors %v, got %v", dir, want, got)
-	}
+	assert.Equal(t, want, got, "%s: expected errors", dir)
 }
 
 func collectInputs(dir string, prog *domain.Program, name string) (eval.InputValues, error) {

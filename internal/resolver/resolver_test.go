@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/Jh123x/prompiler/internal/ast"
 	"github.com/Jh123x/prompiler/internal/lexer"
 	"github.com/Jh123x/prompiler/internal/parser"
@@ -16,9 +19,7 @@ func parse(t *testing.T, src string) *ast.File {
 	t.Helper()
 	toks, _ := lexer.New(src).Lex()
 	file, diags := parser.New(toks).ParseFile()
-	if len(diags) != 0 {
-		t.Fatalf("parse diagnostics: %v", diags)
-	}
+	require.Empty(t, diags)
 	return file
 }
 
@@ -33,24 +34,30 @@ func resolveSrcs(t *testing.T, files map[string]string) []token.Diagnostic {
 }
 
 func TestScopeShadowing(t *testing.T) {
-	s := newScope(nil)
-	s.define("x", &Symbol{Name: "x", Kind: KindLocal})
-	inner := newScope(s)
-	if got := inner.lookup("x"); got == nil || got.Kind != KindLocal {
-		t.Fatalf("lookup through parent failed: %v", got)
-	}
-	if !inner.define("x", &Symbol{Name: "x", Kind: KindLocal}) {
-		t.Fatal("shadowing an outer name should be allowed")
-	}
-	if inner.define("x", &Symbol{Name: "x", Kind: KindLocal}) {
-		t.Fatal("same-scope duplicate should be rejected")
-	}
+	t.Run("looks up through the parent scope", func(t *testing.T) {
+		s := newScope(nil)
+		s.define("x", &Symbol{Name: "x", Kind: KindLocal})
+		got := newScope(s).lookup("x")
+		require.NotNil(t, got)
+		assert.Equal(t, KindLocal, got.Kind)
+	})
+
+	t.Run("allows shadowing an outer name", func(t *testing.T) {
+		s := newScope(nil)
+		s.define("x", &Symbol{Name: "x", Kind: KindLocal})
+		assert.True(t, newScope(s).define("x", &Symbol{Name: "x", Kind: KindLocal}))
+	})
+
+	t.Run("rejects a same-scope duplicate", func(t *testing.T) {
+		s := newScope(nil)
+		s.define("x", &Symbol{Name: "x", Kind: KindLocal})
+		assert.False(t, s.define("x", &Symbol{Name: "x", Kind: KindLocal}))
+	})
 }
 
 func TestVarSelfReferenceResolvesOuter(t *testing.T) {
-	// `var x = x + 1` inside a block must resolve the RHS `x` to the outer scope
-	// and must NOT be a duplicate-name error.
-	src := `func demo(n: int): int {
+	t.Run("var x = x + 1 reads the outer binding", func(t *testing.T) {
+		src := `func demo(n: int): int {
   var x = n
   if (x > 0) {
     var x = x + 1
@@ -58,95 +65,87 @@ func TestVarSelfReferenceResolvesOuter(t *testing.T) {
   }
   return x
 }`
-	diags := resolveSrcs(t, map[string]string{"demo.ppl": src})
-	if len(diags) != 0 {
-		t.Fatalf("unexpected diagnostics: %v", diags)
-	}
+		diags := resolveSrcs(t, map[string]string{"demo.ppl": src})
+		assert.Empty(t, diags)
+	})
 }
 
 func TestDuplicateParam(t *testing.T) {
-	src := `func f(x: int, x: int): int { return x }`
-	diags := resolveSrcs(t, map[string]string{"f.ppl": src})
-	if len(diags) != 1 || diags[0].Category != token.CatDuplicateName {
-		t.Fatalf("expected one duplicate_name diagnostic, got %v", diags)
-	}
+	t.Run("duplicate parameter is a duplicate_name error", func(t *testing.T) {
+		src := `func f(x: int, x: int): int { return x }`
+		diags := resolveSrcs(t, map[string]string{"f.ppl": src})
+		require.Len(t, diags, 1)
+		assert.Equal(t, token.CatDuplicateName, diags[0].Category)
+	})
 }
 
 func TestDuplicateGlobal(t *testing.T) {
-	src := "class A { x: int }\nclass A { y: int }\n"
-	diags := resolveSrcs(t, map[string]string{"a.ppl": src})
-	if len(diags) != 1 || diags[0].Category != token.CatDuplicateName {
-		t.Fatalf("expected one duplicate_name diagnostic, got %v", diags)
-	}
+	t.Run("duplicate top-level name is a duplicate_name error", func(t *testing.T) {
+		src := "class A { x: int }\nclass A { y: int }\n"
+		diags := resolveSrcs(t, map[string]string{"a.ppl": src})
+		require.Len(t, diags, 1)
+		assert.Equal(t, token.CatDuplicateName, diags[0].Category)
+	})
 }
 
 func TestMissingImport(t *testing.T) {
-	src := `import "nonexistent.ppl"
+	t.Run("missing import is reported", func(t *testing.T) {
+		src := `import "nonexistent.ppl"
 template T { variables { x: int } prompt { {{ x }} } }`
-	diags := resolveSrcs(t, map[string]string{"t.ppl": src})
-	if len(diags) != 1 || diags[0].Category != token.Category("missing_import") {
-		t.Fatalf("expected one missing_import diagnostic, got %v", diags)
-	}
+		diags := resolveSrcs(t, map[string]string{"t.ppl": src})
+		require.Len(t, diags, 1)
+		assert.Equal(t, token.Category("missing_import"), diags[0].Category)
+	})
 }
 
 func TestOnboardingEmailResolves(t *testing.T) {
-	// Parse the multi-file scenario and resolve as one program.
-	dir := "../../examples/scenario/onboarding-email"
-	files := map[string]string{}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatalf("read dir: %v", err)
-	}
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".ppl") {
-			continue
+	t.Run("multi-file scenario resolves its imports", func(t *testing.T) {
+		dir := "../../examples/scenario/onboarding-email"
+		entries, err := os.ReadDir(dir)
+		require.NoError(t, err)
+
+		files := map[string]string{}
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".ppl") {
+				continue
+			}
+			data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+			require.NoError(t, err)
+			files[e.Name()] = string(data)
 		}
-		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
-		if err != nil {
-			t.Fatalf("read %s: %v", e.Name(), err)
-		}
-		files[e.Name()] = string(data)
-	}
-	diags := resolveSrcs(t, files)
-	if len(diags) != 0 {
-		t.Fatalf("unexpected diagnostics: %v", diags)
-	}
+		diags := resolveSrcs(t, files)
+		assert.Empty(t, diags)
+	})
 }
 
 func TestAllExamplesResolveCleanly(t *testing.T) {
-	// Group .ppl files by directory; each directory is one program.
-	dirs := map[string][]string{}
-	err := filepath.Walk("../../examples", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.HasSuffix(path, ".ppl") {
-			d := filepath.Dir(path)
-			dirs[d] = append(dirs[d], path)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walk: %v", err)
-	}
-	for dir, paths := range dirs {
-		files := map[string]*ast.File{}
-		for _, p := range paths {
-			data, err := os.ReadFile(p)
+	t.Run("every example resolves with zero diagnostics", func(t *testing.T) {
+		dirs := map[string][]string{}
+		err := filepath.Walk("../../examples", func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				t.Fatalf("read %s: %v", p, err)
+				return err
 			}
-			toks, _ := lexer.New(string(data)).Lex()
-			file, pdiags := parser.New(toks).ParseFile()
-			if len(pdiags) != 0 {
-				t.Errorf("%s: parse diagnostics %v", p, pdiags)
-				continue
+			if !info.IsDir() && strings.HasSuffix(path, ".ppl") {
+				dirs[filepath.Dir(path)] = append(dirs[filepath.Dir(path)], path)
 			}
-			files[filepath.Base(p)] = file
+			return nil
+		})
+		require.NoError(t, err)
+
+		for dir, paths := range dirs {
+			files := map[string]*ast.File{}
+			for _, p := range paths {
+				data, err := os.ReadFile(p)
+				require.NoError(t, err)
+				toks, _ := lexer.New(string(data)).Lex()
+				file, pdiags := parser.New(toks).ParseFile()
+				if !assert.Empty(t, pdiags, "%s: parse diagnostics", p) {
+					continue
+				}
+				files[filepath.Base(p)] = file
+			}
+			_, diags := New(files).Resolve()
+			assert.Empty(t, diags, "%s: resolve diagnostics", dir)
 		}
-		_, diags := New(files).Resolve()
-		if len(diags) != 0 {
-			t.Errorf("%s: %d resolve diagnostics: %v", dir, len(diags), diags)
-		}
-	}
+	})
 }

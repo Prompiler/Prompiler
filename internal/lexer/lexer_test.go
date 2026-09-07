@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/Jh123x/prompiler/internal/token"
 )
 
@@ -28,106 +31,128 @@ func typesOf(toks []token.Token) []token.TokenType {
 }
 
 func TestOperators(t *testing.T) {
-	src := "|| && == != <= >= < > + - * / % ! = ( ) { } [ ] , : ."
-	want := []token.TokenType{
-		token.OR_OR, token.AND_AND, token.EQ_EQ, token.NOT_EQ, token.LT_EQ, token.GT_EQ,
-		token.LT, token.GT, token.PLUS, token.MINUS, token.STAR, token.SLASH, token.PERCENT,
-		token.BANG, token.ASSIGN, token.LPAREN, token.RPAREN, token.LBRACE, token.RBRACE,
-		token.LBRACKET, token.RBRACKET, token.COMMA, token.COLON, token.DOT,
-	}
-	toks, diags := lex(t, src)
-	if len(diags) != 0 {
-		t.Fatalf("unexpected diagnostics: %v", diags)
-	}
-	got := typesOf(toks)
-	if len(got) != len(want) {
-		t.Fatalf("got %d tokens, want %d: %v", len(got), len(want), got)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("token %d: got %v, want %v", i, got[i], want[i])
+	t.Run("recognizes every operator and punctuation token", func(t *testing.T) {
+		src := "|| && == != <= >= < > + - * / % ! = ( ) { } [ ] , : ."
+		want := []token.TokenType{
+			token.OR_OR, token.AND_AND, token.EQ_EQ, token.NOT_EQ, token.LT_EQ, token.GT_EQ,
+			token.LT, token.GT, token.PLUS, token.MINUS, token.STAR, token.SLASH, token.PERCENT,
+			token.BANG, token.ASSIGN, token.LPAREN, token.RPAREN, token.LBRACE, token.RBRACE,
+			token.LBRACKET, token.RBRACKET, token.COMMA, token.COLON, token.DOT,
 		}
-	}
+		toks, diags := lex(t, src)
+		require.Empty(t, diags)
+		assert.Equal(t, want, typesOf(toks))
+	})
 }
 
 func TestNumbers(t *testing.T) {
-	toks, _ := lex(t, "42 3.14 1. .5 1e3 0")
-	if len(toks) != 9 {
-		t.Fatalf("got %d tokens: %v", len(toks), typesOf(toks))
-	}
-	if toks[0].Type != token.INT || toks[0].IntVal != 42 {
-		t.Errorf("42 -> %v %v", toks[0].Type, toks[0].IntVal)
-	}
-	if toks[1].Type != token.FLOAT || toks[1].FloatVal != 3.14 {
-		t.Errorf("3.14 -> %v %v", toks[1].Type, toks[1].FloatVal)
-	}
-	// "1." lexes as INT(1) DOT
-	if toks[2].Type != token.INT || toks[2].IntVal != 1 || toks[3].Type != token.DOT {
-		t.Errorf("1. -> %v %v %v", toks[2].Type, toks[2].IntVal, toks[3].Type)
-	}
-	// ".5" lexes as DOT INT(5)
-	if toks[4].Type != token.DOT || toks[5].Type != token.INT || toks[5].IntVal != 5 {
-		t.Errorf(".5 -> %v %v", toks[4].Type, toks[5].Type)
-	}
-	// "1e3" lexes as INT(1) IDENT(e3)
-	if toks[6].Type != token.INT || toks[7].Type != token.IDENT || toks[7].Lexeme != "e3" {
-		t.Errorf("1e3 -> %v %v", toks[6].Type, toks[7].Type)
-	}
+	t.Run("integer literal", func(t *testing.T) {
+		toks, _ := lex(t, "42")
+		require.Len(t, toks, 1)
+		assert.Equal(t, token.INT, toks[0].Type)
+		assert.Equal(t, int64(42), toks[0].IntVal)
+	})
+
+	t.Run("float literal", func(t *testing.T) {
+		toks, _ := lex(t, "3.14")
+		require.Len(t, toks, 1)
+		assert.Equal(t, token.FLOAT, toks[0].Type)
+		assert.Equal(t, 3.14, toks[0].FloatVal)
+	})
+
+	t.Run("trailing dot lexes as int then dot", func(t *testing.T) {
+		toks, _ := lex(t, "1.")
+		require.Len(t, toks, 2)
+		assert.Equal(t, token.INT, toks[0].Type)
+		assert.Equal(t, token.DOT, toks[1].Type)
+	})
+
+	t.Run("leading dot lexes as dot then int", func(t *testing.T) {
+		toks, _ := lex(t, ".5")
+		require.Len(t, toks, 2)
+		assert.Equal(t, token.DOT, toks[0].Type)
+		assert.Equal(t, token.INT, toks[1].Type)
+		assert.Equal(t, int64(5), toks[1].IntVal)
+	})
+
+	t.Run("exponent lexes as int then identifier", func(t *testing.T) {
+		toks, _ := lex(t, "1e3")
+		require.Len(t, toks, 2)
+		assert.Equal(t, token.INT, toks[0].Type)
+		assert.Equal(t, token.IDENT, toks[1].Type)
+		assert.Equal(t, "e3", toks[1].Lexeme)
+	})
 }
 
 func TestStrings(t *testing.T) {
-	toks, _ := lex(t, `"hello" 'world' "a\nb" "quote\"x"`)
-	if toks[0].Type != token.STRING || toks[0].Lexeme != "hello" {
-		t.Errorf("double: %v %q", toks[0].Type, toks[0].Lexeme)
-	}
-	if toks[1].Type != token.STRING || toks[1].Lexeme != "world" {
-		t.Errorf("single: %v %q", toks[1].Type, toks[1].Lexeme)
-	}
-	if toks[2].Lexeme != "a\nb" {
-		t.Errorf("newline escape: %q", toks[2].Lexeme)
-	}
-	if toks[3].Lexeme != `quote"x` {
-		t.Errorf("quote escape: %q", toks[3].Lexeme)
-	}
+	t.Run("double quoted", func(t *testing.T) {
+		toks, _ := lex(t, `"hello"`)
+		require.Len(t, toks, 1)
+		assert.Equal(t, token.STRING, toks[0].Type)
+		assert.Equal(t, "hello", toks[0].Lexeme)
+	})
+
+	t.Run("single quoted", func(t *testing.T) {
+		toks, _ := lex(t, `'world'`)
+		require.Len(t, toks, 1)
+		assert.Equal(t, token.STRING, toks[0].Type)
+		assert.Equal(t, "world", toks[0].Lexeme)
+	})
+
+	t.Run("newline escape", func(t *testing.T) {
+		toks, _ := lex(t, `"a\nb"`)
+		require.Len(t, toks, 1)
+		assert.Equal(t, "a\nb", toks[0].Lexeme)
+	})
+
+	t.Run("quote escape", func(t *testing.T) {
+		toks, _ := lex(t, `"quote\"x"`)
+		require.Len(t, toks, 1)
+		assert.Equal(t, `quote"x`, toks[0].Lexeme)
+	})
 }
 
 func TestComments(t *testing.T) {
-	toks, _ := lex(t, "a // line comment\nb /* block\ncomment */ c")
-	got := typesOf(toks)
-	want := []token.TokenType{token.IDENT, token.IDENT, token.IDENT}
-	if len(got) != len(want) {
-		t.Fatalf("got %v, want %v", got, want)
-	}
-	if toks[0].Lexeme != "a" || toks[1].Lexeme != "b" || toks[2].Lexeme != "c" {
-		t.Errorf("lexemes: %v %v %v", toks[0].Lexeme, toks[1].Lexeme, toks[2].Lexeme)
-	}
+	t.Run("line comment is skipped", func(t *testing.T) {
+		toks, _ := lex(t, "a // comment\nb")
+		require.Len(t, toks, 2)
+		assert.Equal(t, "a", toks[0].Lexeme)
+		assert.Equal(t, "b", toks[1].Lexeme)
+	})
+
+	t.Run("block comment is skipped", func(t *testing.T) {
+		toks, _ := lex(t, "a /* comment */ b")
+		require.Len(t, toks, 2)
+		assert.Equal(t, "a", toks[0].Lexeme)
+		assert.Equal(t, "b", toks[1].Lexeme)
+	})
 }
 
 func TestKeywordsAndIdentifiers(t *testing.T) {
-	toks, _ := lex(t, "enum class interface func template import var if else for in return this true false none string int float bool map array Optional Difficulty")
-	keywords := []token.TokenType{
-		token.ENUM, token.CLASS, token.INTERFACE, token.FUNC, token.TEMPLATE, token.IMPORT,
-		token.VAR, token.IF, token.ELSE, token.FOR, token.IN, token.RETURN, token.THIS,
-		token.TRUE, token.FALSE, token.NONE, token.STRING_KW, token.INT_KW, token.FLOAT_KW,
-		token.BOOL_KW, token.MAP, token.ARRAY, token.OPTIONAL,
-	}
-	// The last identifier "Difficulty" is a plain IDENT (not reserved).
-	got := typesOf(toks)
-	if len(got) != len(keywords)+1 {
-		t.Fatalf("got %d tokens, want %d", len(got), len(keywords)+1)
-	}
-	for i, kw := range keywords {
-		if got[i] != kw {
-			t.Errorf("token %d: got %v, want %v", i, got[i], kw)
+	t.Run("reserved words are keywords", func(t *testing.T) {
+		src := "enum class interface func template import var if else for in return this true false none string int float bool map array Optional"
+		keywords := []token.TokenType{
+			token.ENUM, token.CLASS, token.INTERFACE, token.FUNC, token.TEMPLATE, token.IMPORT,
+			token.VAR, token.IF, token.ELSE, token.FOR, token.IN, token.RETURN, token.THIS,
+			token.TRUE, token.FALSE, token.NONE, token.STRING_KW, token.INT_KW, token.FLOAT_KW,
+			token.BOOL_KW, token.MAP, token.ARRAY, token.OPTIONAL,
 		}
-	}
-	if got[len(keywords)] != token.IDENT {
-		t.Errorf("Difficulty should be IDENT, got %v", got[len(keywords)])
-	}
+		toks, _ := lex(t, src)
+		require.Len(t, toks, len(keywords))
+		assert.Equal(t, keywords, typesOf(toks))
+	})
+
+	t.Run("non-reserved name is an identifier", func(t *testing.T) {
+		toks, _ := lex(t, "Difficulty")
+		require.Len(t, toks, 1)
+		assert.Equal(t, token.IDENT, toks[0].Type)
+		assert.Equal(t, "Difficulty", toks[0].Lexeme)
+	})
 }
 
 func TestPromptBodyCapture(t *testing.T) {
-	src := `template Greet {
+	t.Run("captures the verbatim prompt body", func(t *testing.T) {
+		src := `template Greet {
   variables { name: string }
   prompt {
     Hello {{ name }}!
@@ -136,91 +161,67 @@ func TestPromptBodyCapture(t *testing.T) {
     \{ literal \}
   }
 }`
-	toks, diags := lex(t, src)
-	if len(diags) != 0 {
-		t.Fatalf("unexpected diagnostics: %v", diags)
-	}
-	// Find the PROMPT_BODY token.
-	var body *token.Token
-	for i := range toks {
-		if toks[i].Type == token.PROMPT_BODY {
-			body = &toks[i]
-			break
+		toks, diags := lex(t, src)
+		require.Empty(t, diags)
+
+		var body *token.Token
+		for i := range toks {
+			if toks[i].Type == token.PROMPT_BODY {
+				body = &toks[i]
+				break
+			}
 		}
-	}
-	if body == nil {
-		t.Fatal("no PROMPT_BODY token found")
-	}
-	// The raw body must be captured verbatim (escapes and constructs intact) and
-	// must NOT include the closing brace.
-	if !strings.Contains(body.Lexeme, "Hello {{ name }}!") {
-		t.Errorf("body missing interpolation text: %q", body.Lexeme)
-	}
-	if !strings.Contains(body.Lexeme, `{% if x %}...{% end %}`) {
-		t.Errorf("body missing control tag: %q", body.Lexeme)
-	}
-	if !strings.Contains(body.Lexeme, `{{ include Header(company: company) }}`) {
-		t.Errorf("body missing include: %q", body.Lexeme)
-	}
-	if !strings.Contains(body.Lexeme, `\{ literal \}`) {
-		t.Errorf("body missing escaped braces: %q", body.Lexeme)
-	}
-	if strings.HasSuffix(body.Lexeme, "}") {
-		t.Errorf("body should exclude the closing brace: %q", body.Lexeme)
-	}
+		require.NotNil(t, body, "expected a PROMPT_BODY token")
+		assert.Contains(t, body.Lexeme, "Hello {{ name }}!")
+		assert.Contains(t, body.Lexeme, `{% if x %}...{% end %}`)
+		assert.Contains(t, body.Lexeme, `{{ include Header(company: company) }}`)
+		assert.Contains(t, body.Lexeme, `\{ literal \}`)
+		assert.NotEqual(t, "}", body.Lexeme[len(body.Lexeme)-1:], "body must exclude the closing brace")
+	})
 }
 
 func TestPositions(t *testing.T) {
-	toks, _ := lex(t, "abc\ndef")
-	// "def" starts at line 2, column 1, offset 4.
-	if toks[1].Span.Start.Line != 2 || toks[1].Span.Start.Column != 1 {
-		t.Errorf("def position: %+v", toks[1].Span.Start)
-	}
-	if toks[0].Span.Start.Line != 1 || toks[0].Span.Start.Column != 1 {
-		t.Errorf("abc position: %+v", toks[0].Span.Start)
-	}
+	t.Run("tracks line and column", func(t *testing.T) {
+		toks, _ := lex(t, "abc\ndef")
+		require.Len(t, toks, 2)
+		assert.Equal(t, 1, toks[0].Span.Start.Line)
+		assert.Equal(t, 1, toks[0].Span.Start.Column)
+		assert.Equal(t, 2, toks[1].Span.Start.Line)
+		assert.Equal(t, 1, toks[1].Span.Start.Column)
+	})
 }
 
 func TestCRLFNormalization(t *testing.T) {
-	toks, _ := lex(t, "a\r\nb\r\n")
-	if len(toks) != 2 {
-		t.Fatalf("got %d tokens", len(toks))
-	}
-	if toks[1].Span.Start.Line != 2 {
-		t.Errorf("b should be on line 2, got %+v", toks[1].Span.Start)
-	}
+	t.Run("normalizes CRLF to LF", func(t *testing.T) {
+		toks, _ := lex(t, "a\r\nb\r\n")
+		require.Len(t, toks, 2)
+		assert.Equal(t, 2, toks[1].Span.Start.Line)
+	})
 }
 
 func TestAllExamplesLexCleanly(t *testing.T) {
-	var files []string
-	err := filepath.Walk("../../examples", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.HasSuffix(path, ".ppl") {
-			files = append(files, path)
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walk examples: %v", err)
-	}
-	if len(files) == 0 {
-		t.Fatal("no example files found")
-	}
-	for _, f := range files {
-		data, err := os.ReadFile(f)
-		if err != nil {
-			t.Fatalf("read %s: %v", f, err)
-		}
-		toks, diags := New(string(data)).Lex()
-		for _, tok := range toks {
-			if tok.Type == token.ILLEGAL {
-				t.Errorf("%s: illegal token %q at %+v", f, tok.Lexeme, tok.Span.Start)
+	t.Run("every example lexes with zero illegal tokens", func(t *testing.T) {
+		var files []string
+		err := filepath.Walk("../../examples", func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
 			}
+			if !info.IsDir() && strings.HasSuffix(path, ".ppl") {
+				files = append(files, path)
+			}
+			return nil
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, files)
+
+		for _, f := range files {
+			data, err := os.ReadFile(f)
+			require.NoError(t, err)
+			toks, diags := New(string(data)).Lex()
+			for _, tok := range toks {
+				assert.NotEqual(t, token.ILLEGAL, tok.Type, "%s: illegal token %q", f, tok.Lexeme)
+			}
+			assert.Empty(t, diags, "%s: lexer diagnostics", f)
 		}
-		if len(diags) != 0 {
-			t.Errorf("%s: %d diagnostics: %v", f, len(diags), diags)
-		}
-	}
+	})
 }
