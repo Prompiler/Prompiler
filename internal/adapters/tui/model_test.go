@@ -330,6 +330,24 @@ func TestModelBackFromForm(t *testing.T) {
 	require.Equal(t, stageBrowse, m.stage)
 }
 
+func TestModelScalarValidation(t *testing.T) {
+	m := modelForSource(t, map[string]string{"dbz.ppl": divZeroSource})
+	tap(m, keyEnterMsg) // open DivisionByZero
+	require.Equal(t, stageForm, m.stage)
+
+	// n (int): typing an invalid value is rejected with an error.
+	tap(m, keyEnterMsg) // edit n
+	tap(m, keyText("abc"))
+	tap(m, keyEnterMsg)
+	require.Equal(t, editText, m.editKind) // still editing
+	require.NotEmpty(t, m.editErr)
+
+	// Cancel reverts the field to its previous (empty) value.
+	tap(m, keyEscMsg)
+	require.Equal(t, editNone, m.editKind)
+	require.Empty(t, mustField(t, m.form, "n").text)
+}
+
 func TestModelDivisionByZeroReturnsToForm(t *testing.T) {
 	m := modelForSource(t, map[string]string{"dbz.ppl": divZeroSource})
 

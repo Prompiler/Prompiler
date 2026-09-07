@@ -104,6 +104,7 @@ type Model struct {
 	editEntry    *mapEntry
 	editOptional *FormField // set when editing an optional's scalar child
 	chainValue   *FormField // map value to edit after its key is committed
+	editErr      string     // validation error shown during an edit
 
 	// output
 	outKind     outKind
@@ -285,9 +286,11 @@ func (m *Model) updateForm(key tea.KeyMsg) tea.Cmd {
 				m.selectOptionalNone()
 			} else {
 				m.ti, _ = m.ti.Update(key)
+				m.editErr = ""
 			}
 		default:
 			m.ti, _ = m.ti.Update(key)
+			m.editErr = ""
 		}
 		return nil
 	}
@@ -574,6 +577,7 @@ func (m *Model) beginTextEdit(f *FormField) {
 	m.editEntry = nil
 	m.editOptional = nil
 	m.chainValue = nil
+	m.editErr = ""
 	m.ti.SetValue(f.text)
 	m.ti.CursorEnd()
 	m.ti.Focus()
@@ -585,6 +589,7 @@ func (m *Model) beginKeyEdit(e *mapEntry) {
 	m.editEntry = e
 	m.editOptional = nil
 	m.chainValue = nil
+	m.editErr = ""
 	m.ti.SetValue(e.key)
 	m.ti.CursorEnd()
 	m.ti.Focus()
@@ -594,12 +599,26 @@ func (m *Model) commitEdit() {
 	switch m.editKind {
 	case editText:
 		if m.editField != nil {
-			m.editField.text = m.ti.Value()
+			text := m.ti.Value()
+			old := m.editField.text
+			m.editField.text = text
+			if !(m.editField.optional && text == "") {
+				if _, err := m.editField.Value(); err != nil {
+					m.editField.text = old
+					m.editErr = err.Error()
+					return
+				}
+			}
 		}
 		m.endEdit()
 	case editKey:
 		if m.editEntry != nil {
-			m.editEntry.key = m.ti.Value()
+			key := m.ti.Value()
+			if key == "" {
+				m.editErr = "map key must not be empty"
+				return
+			}
+			m.editEntry.key = key
 		}
 		chain := m.chainValue
 		m.endEdit()
@@ -615,6 +634,7 @@ func (m *Model) endEdit() {
 	m.editEntry = nil
 	m.editOptional = nil
 	m.chainValue = nil
+	m.editErr = ""
 	m.ti.Blur()
 }
 
