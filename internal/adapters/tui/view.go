@@ -99,7 +99,7 @@ func (m *Model) viewForm() string {
 		}
 		b.WriteString("\n" + rowStyle.Render("editing "+target+": "+m.ti.Value()+"█") + "\n")
 	} else {
-		b.WriteString(hintStyle.Render("\nenter drill/edit · esc back · ↑/↓ move · ←/→ cycle enum · t optional · a add · d remove · r run · q quit") + "\n")
+		b.WriteString(hintStyle.Render("\n↑/↓ move · enter open/edit · esc back · a add · d remove · r run · q quit") + "\n")
 	}
 	return b.String()
 }
@@ -173,6 +173,9 @@ func (m *Model) breadcrumb() string {
 func (m *Model) describeRow(r *formRow, idx int) string {
 	if r.choice != nil {
 		return r.choice.Name + "  (satisfies " + typeString(r.field.typ) + ")"
+	}
+	if r.option != "" {
+		return r.option
 	}
 	f := r.field
 	if f == nil {

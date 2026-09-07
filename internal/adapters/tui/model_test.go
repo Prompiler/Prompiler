@@ -47,6 +47,30 @@ template DivisionByZero {
 }
 `
 
+const enumSource = `
+enum Difficulty { Easy, Medium, Hard }
+
+template EnumTest {
+  variables {
+    level: Difficulty
+  }
+  prompt {
+    Level: {{ level }}
+  }
+}
+`
+
+const optionalSource = `
+template OptTest {
+  variables {
+    nickname: Optional<string>
+  }
+  prompt {
+    {{ nickname.value() }}
+  }
+}
+`
+
 // --- key helpers ---
 
 func keyRune(r rune) tea.Msg   { return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}} }
@@ -210,6 +234,51 @@ func TestModelAddToEmptyCollection(t *testing.T) {
 	tap(m, keyRune('a'))
 	require.Len(t, m.view.rows, 1)
 	require.Len(t, mustField(t, m.form, "tags").entries, 1)
+}
+
+func TestModelEnumChooser(t *testing.T) {
+	m := modelForSource(t, map[string]string{"enum.ppl": enumSource})
+	tap(m, keyEnterMsg) // open EnumTest
+	require.Equal(t, stageForm, m.stage)
+
+	// Entering the enum opens a chooser listing its members.
+	tap(m, keyEnterMsg)
+	require.Len(t, m.view.rows, 3)
+	require.Equal(t, "Easy", m.view.rows[0].option)
+	require.Equal(t, "Medium", m.view.rows[1].option)
+	require.Equal(t, "Hard", m.view.rows[2].option)
+
+	// Select "Hard" with the arrow keys.
+	tap(m, keyDownMsg)
+	tap(m, keyDownMsg)
+	tap(m, keyEnterMsg)
+	require.Equal(t, "Hard", mustField(t, m.form, "level").text)
+}
+
+func TestModelOptionalEdit(t *testing.T) {
+	m := modelForSource(t, map[string]string{"opt.ppl": optionalSource})
+	tap(m, keyEnterMsg) // open OptTest
+	require.Equal(t, stageForm, m.stage)
+
+	nick := mustField(t, m.form, "nickname")
+	require.False(t, nick.present) // starts as "none"
+
+	// Enter switches to "some" and begins editing the scalar value.
+	tap(m, keyEnterMsg)
+	require.True(t, nick.present)
+	require.Equal(t, editText, m.editKind)
+	require.Equal(t, nick.child, m.editField)
+
+	tap(m, keyText("Ada"))
+	tap(m, keyEnterMsg)
+	require.Equal(t, "Ada", nick.child.text)
+
+	// Enter again to edit, then the down arrow selects "none".
+	tap(m, keyEnterMsg)
+	require.Equal(t, editText, m.editKind)
+	tap(m, keyDownMsg)
+	require.False(t, nick.present)
+	require.Equal(t, editNone, m.editKind)
 }
 
 func TestModelDivisionByZeroReturnsToForm(t *testing.T) {

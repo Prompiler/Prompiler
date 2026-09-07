@@ -63,6 +63,7 @@ type formRow struct {
 	field  *FormField
 	entry  *mapEntry    // non-nil when the row is a map entry (key text lives here)
 	choice *types.Class // non-nil in an interface class chooser
+	option string       // non-empty in an enum member chooser row
 }
 
 // formView is the visible container of rows being navigated.
@@ -97,10 +98,11 @@ type Model struct {
 	formErr      string
 
 	// text editor (scalar values and map keys)
-	ti        textinput.Model
-	editKind  editKind
-	editField *FormField
-	editEntry *mapEntry
+	ti           textinput.Model
+	editKind     editKind
+	editField    *FormField
+	editEntry    *mapEntry
+	editOptional *FormField // set when editing an optional's scalar child
 
 	// output
 	outKind     outKind
@@ -277,6 +279,12 @@ func (m *Model) updateForm(key tea.KeyMsg) tea.Cmd {
 			m.commitEdit()
 		case tea.KeyEsc:
 			m.endEdit()
+		case tea.KeyDown:
+			if m.editOptional != nil {
+				m.selectOptionalNone()
+			} else {
+				m.ti, _ = m.ti.Update(key)
+			}
 		default:
 			m.ti, _ = m.ti.Update(key)
 		}
@@ -365,6 +373,14 @@ func (m *Model) enterRow() {
 		}
 		return
 	}
+	if r.option != "" {
+		// selecting an enum member from the chooser
+		r.field.text = r.option
+		if m.view.parent != nil {
+			m.view = m.view.parent
+		}
+		return
+	}
 	if r.entry != nil {
 		// enter edits the entry value (a compound drills deeper)
 		m.enterField(r.entry.value)
@@ -381,7 +397,7 @@ func (m *Model) enterField(f *FormField) {
 	case types.Primitive:
 		m.beginTextEdit(f)
 	case *types.Enum:
-		// members are cycled with left/right
+		m.openEnumChooser(f)
 	case *types.Class, *types.Array, *types.Map:
 		m.descend(f)
 	case *types.Interface:
@@ -391,9 +407,7 @@ func (m *Model) enterField(f *FormField) {
 			m.descend(f)
 		}
 	case *types.Optional:
-		if f.present && f.child != nil {
-			m.enterField(f.child)
-		}
+		m.enterOptional(f)
 	}
 }
 
@@ -421,6 +435,35 @@ func (m *Model) openChooser(f *FormField) {
 		rows = append(rows, formRow{field: f, choice: c})
 	}
 	m.view = &formView{title: title, rows: rows, parent: m.view}
+}
+
+// openEnumChooser opens a chooser listing the enum's members.
+func (m *Model) openEnumChooser(f *FormField) {
+	title := f.label
+	if title == "" {
+		title = f.typ.String()
+	}
+	rows := make([]formRow, 0, len(f.members))
+	for _, mem := range f.members {
+		rows = append(rows, formRow{field: f, option: mem})
+	}
+	m.view = &formView{title: title, rows: rows, parent: m.view}
+}
+
+// enterOptional switches an optional to "some" and lets the user edit its value.
+func (m *Model) enterOptional(f *FormField) {
+	if !f.present {
+		f.present = true
+	}
+	if f.child == nil {
+		return
+	}
+	if _, ok := f.child.typ.(types.Primitive); ok {
+		m.beginTextEdit(f.child)
+		m.editOptional = f
+		return
+	}
+	m.enterField(f.child)
 }
 
 func (m *Model) cycleSelectedEnum(d int) {
@@ -521,6 +564,21 @@ func (m *Model) toggleOptional() {
 	}
 }
 
+// selectOptionalNone sets the optional being edited back to "none".
+func (m *Model) selectOptionalNone() {
+	f := m.editOptional
+	if f == nil {
+		m.endEdit()
+		return
+	}
+	if opt, ok := f.typ.(*types.Optional); ok {
+		f.present = false
+		f.child = buildField(opt.Elem, f.env)
+	}
+	m.endEdit()
+	m.refreshView()
+}
+
 func (m *Model) editSelectedKey() {
 	r := m.currentRow()
 	if r == nil || r.entry == nil {
@@ -533,6 +591,7 @@ func (m *Model) beginTextEdit(f *FormField) {
 	m.editKind = editText
 	m.editField = f
 	m.editEntry = nil
+	m.editOptional = nil
 	m.ti.SetValue(f.text)
 	m.ti.CursorEnd()
 	m.ti.Focus()
@@ -565,6 +624,7 @@ func (m *Model) endEdit() {
 	m.editKind = editNone
 	m.editField = nil
 	m.editEntry = nil
+	m.editOptional = nil
 	m.ti.Blur()
 }
 
