@@ -63,9 +63,9 @@ func (m *Model) viewBrowse() string {
 		b.WriteString(style.Render(marker+line) + "\n")
 	}
 	if m.pathEdit {
-		b.WriteString("\n" + rowStyle.Render("root path: "+m.pathInput.Value()+"█  (enter confirm, esc cancel)") + "\n")
+		b.WriteString("\n" + rowStyle.Render("root path: "+m.pathInput.Value()+"█  (→/enter confirm, ←/esc cancel)") + "\n")
 	} else {
-		b.WriteString(hintStyle.Render("\n↑/↓ choose · enter open · p edit root path · q quit") + "\n")
+		b.WriteString(hintStyle.Render("\n↑/↓ choose · → select · ← back · p edit root · q quit") + "\n")
 	}
 	return b.String()
 }
@@ -99,7 +99,7 @@ func (m *Model) viewForm() string {
 		}
 		b.WriteString("\n" + rowStyle.Render("editing "+target+": "+m.ti.Value()+"█") + "\n")
 	} else {
-		b.WriteString(hintStyle.Render("\n↑/↓ move · enter open/edit · esc back · a add · d remove · r run · q quit") + "\n")
+		b.WriteString(hintStyle.Render("\n↑/↓ move · → select · ← back · a add · d remove · r run · q quit") + "\n")
 	}
 	return b.String()
 }
@@ -120,11 +120,11 @@ func (m *Model) viewOutput() string {
 	switch m.outMode {
 	case outputPath:
 		b.WriteString("\n" + rowStyle.Render("file path: "+m.fileInput.Value()+"█") + "\n")
-		b.WriteString(hintStyle.Render("(enter confirms, esc cancels)") + "\n")
+		b.WriteString(hintStyle.Render("(→/enter confirms, ←/esc cancels)") + "\n")
 	case outputConfirm:
 		b.WriteString("\n" + errStyle.Render("overwrite existing file "+m.filePathVal+"? (y/n)") + "\n")
 	default:
-		b.WriteString(hintStyle.Render("\n↑/↓ choose · enter go · q quit") + "\n")
+		b.WriteString(hintStyle.Render("\n↑/↓ choose · → select · ← back · q quit") + "\n")
 	}
 	if m.outKind == outFile && m.outMode == outputPick && m.filePathVal != "" {
 		b.WriteString(hintStyle.Render("current target file: "+m.filePathVal) + "\n")
@@ -144,9 +144,10 @@ func (m *Model) viewResult() string {
 		case outClipboard:
 			b.WriteString(hintStyle.Render("copied "+strconv.Itoa(len(m.rendered))+" chars to the clipboard") + "\n")
 		}
+		b.WriteString(hintStyle.Render("\n← back · q quit") + "\n")
 	} else {
 		b.WriteString(errStyle.Render("Error: "+resultErrText(m.resultErr)) + "\n")
-		b.WriteString(hintStyle.Render("\ne edit variables · r retry · q quit") + "\n")
+		b.WriteString(hintStyle.Render("\n← back · → retry · q quit") + "\n")
 	}
 	return b.String()
 }

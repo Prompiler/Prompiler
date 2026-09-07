@@ -179,7 +179,7 @@ func (m *Model) reloadBrowse() {
 func (m *Model) updateBrowse(key tea.KeyMsg) tea.Cmd {
 	if m.browseDetail != "" {
 		switch key.Type {
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyLeft:
 			m.browseDetail = ""
 		case tea.KeyRunes:
 			if len(key.Runes) == 1 {
@@ -195,7 +195,7 @@ func (m *Model) updateBrowse(key tea.KeyMsg) tea.Cmd {
 	}
 	if m.pathEdit {
 		switch key.Type {
-		case tea.KeyEnter:
+		case tea.KeyEnter, tea.KeyRight:
 			p := strings.TrimSpace(m.pathInput.Value())
 			if p != "" {
 				m.rootPath = p
@@ -203,7 +203,7 @@ func (m *Model) updateBrowse(key tea.KeyMsg) tea.Cmd {
 			m.pathEdit = false
 			m.pathInput.Blur()
 			m.reloadBrowse()
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyLeft:
 			m.pathEdit = false
 			m.pathInput.Blur()
 		default:
@@ -212,7 +212,7 @@ func (m *Model) updateBrowse(key tea.KeyMsg) tea.Cmd {
 		return nil
 	}
 	switch {
-	case key.Type == tea.KeyEnter:
+	case key.Type == tea.KeyEnter, key.Type == tea.KeyRight:
 		if len(m.templates) > 0 {
 			ti := m.templates[m.browseSel]
 			if len(ti.Diagnostics) > 0 {
@@ -275,9 +275,9 @@ func (m *Model) openTemplate(ti domain.TemplateInfo) {
 func (m *Model) updateForm(key tea.KeyMsg) tea.Cmd {
 	if m.editKind != editNone {
 		switch key.Type {
-		case tea.KeyEnter:
+		case tea.KeyEnter, tea.KeyRight:
 			m.commitEdit()
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyLeft:
 			m.endEdit()
 		case tea.KeyDown:
 			if m.editOptional != nil {
@@ -295,14 +295,10 @@ func (m *Model) updateForm(key tea.KeyMsg) tea.Cmd {
 		m.moveCursor(-1)
 	case key.Type == tea.KeyDown:
 		m.moveCursor(1)
-	case key.Type == tea.KeyEnter:
+	case key.Type == tea.KeyEnter, key.Type == tea.KeyRight:
 		m.enterRow()
-	case key.Type == tea.KeyEsc:
+	case key.Type == tea.KeyEsc, key.Type == tea.KeyLeft:
 		m.backOut()
-	case key.Type == tea.KeyLeft:
-		m.cycleSelectedEnum(-1)
-	case key.Type == tea.KeyRight:
-		m.cycleSelectedEnum(1)
 	case key.Type == tea.KeyRunes && len(key.Runes) == 1:
 		switch key.Runes[0] {
 		case 'a':
@@ -464,32 +460,6 @@ func (m *Model) enterOptional(f *FormField) {
 		return
 	}
 	m.enterField(f.child)
-}
-
-func (m *Model) cycleSelectedEnum(d int) {
-	r := m.currentRow()
-	if r == nil || r.field == nil {
-		return
-	}
-	f := r.field
-	if _, ok := f.typ.(*types.Enum); !ok {
-		return
-	}
-	if len(f.members) == 0 {
-		return
-	}
-	start := 0
-	if i := slices.Index(f.members, f.text); i >= 0 {
-		start = i
-	}
-	if f.text == "" && d < 0 {
-		start = len(f.members) - 1
-	}
-	n := (start + d) % len(f.members)
-	if n < 0 {
-		n += len(f.members)
-	}
-	f.text = f.members[n]
 }
 
 func (m *Model) addRow() {
@@ -668,14 +638,14 @@ func (m *Model) updateOutput(key tea.KeyMsg) tea.Cmd {
 	switch m.outMode {
 	case outputPath:
 		switch key.Type {
-		case tea.KeyEnter:
+		case tea.KeyEnter, tea.KeyRight:
 			p := strings.TrimSpace(m.fileInput.Value())
 			if p == "" {
 				return nil
 			}
 			m.filePathVal = p
 			m.finishFile()
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyLeft:
 			m.outMode = outputPick
 			m.fileInput.Blur()
 		default:
@@ -683,17 +653,14 @@ func (m *Model) updateOutput(key tea.KeyMsg) tea.Cmd {
 		}
 		return nil
 	case outputConfirm:
-		if key.Type == tea.KeyEsc {
+		if key.Type == tea.KeyEsc || key.Type == tea.KeyLeft {
 			m.outMode = outputPick
 			return nil
 		}
-		if key.Type == tea.KeyRunes && len(key.Runes) == 1 {
-			switch key.Runes[0] {
-			case 'y':
-				m.outMode = outputPick
-				m.fileInput.Blur()
-				m.deliverCurrent()
-			}
+		if key.Type == tea.KeyRight || (key.Type == tea.KeyRunes && len(key.Runes) == 1 && key.Runes[0] == 'y') {
+			m.outMode = outputPick
+			m.fileInput.Blur()
+			m.deliverCurrent()
 		}
 		return nil
 	default:
@@ -706,8 +673,10 @@ func (m *Model) updateOutput(key tea.KeyMsg) tea.Cmd {
 			if m.outSel < 2 {
 				m.outSel++
 			}
-		case key.Type == tea.KeyEnter:
+		case key.Type == tea.KeyEnter, key.Type == tea.KeyRight:
 			m.chooseTarget(m.outSel)
+		case key.Type == tea.KeyLeft:
+			m.stage = stageForm // back to edit variables
 		case key.Type == tea.KeyRunes && len(key.Runes) == 1:
 			if key.Runes[0] == 'q' {
 				return tea.Quit
@@ -796,13 +765,13 @@ func (m *Model) setResultErr(err error) {
 // --- result ---
 
 func (m *Model) updateResult(key tea.KeyMsg) tea.Cmd {
-	if key.Type == tea.KeyEsc {
+	if key.Type == tea.KeyEsc || key.Type == tea.KeyLeft {
 		// return to the form to edit variables
 		m.stage = stageForm
 		m.resultErr = nil
 		return nil
 	}
-	if key.Type == tea.KeyEnter {
+	if key.Type == tea.KeyEnter || key.Type == tea.KeyRight {
 		// retry the same target
 		if !m.resultOK && m.outKind != 0 {
 			m.deliverCurrent()
