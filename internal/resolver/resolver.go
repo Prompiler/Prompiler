@@ -160,7 +160,8 @@ func (r *Resolver) resolveImports() {
 }
 
 func (r *Resolver) collectGlobals() {
-	for _, file := range r.files {
+	first := map[string]string{} // name → file path of the first declaration
+	for filePath, file := range r.files {
 		for _, d := range file.Decls {
 			var name string
 			var kind SymbolKind
@@ -179,12 +180,25 @@ func (r *Resolver) collectGlobals() {
 				continue
 			}
 			if _, dup := r.globals[name]; dup {
-				r.err(token.CatDuplicateName, d.Span(), fmt.Sprintf("duplicate top-level name %q", name))
+				r.err(token.CatDuplicateName, d.Span(), duplicateTopLevelMsg(name, first[name], filePath))
 				continue
 			}
 			r.globals[name] = &Symbol{Name: name, Kind: kind, Decl: d}
+			first[name] = filePath
 		}
 	}
+}
+
+// duplicateTopLevelMsg formats a duplicate top-level name diagnostic, naming
+// the source file paths of both declarations.
+func duplicateTopLevelMsg(name, a, b string) string {
+	if a == b {
+		return fmt.Sprintf("duplicate top-level name %q (declared in %q)", name, a)
+	}
+	if a > b {
+		a, b = b, a
+	}
+	return fmt.Sprintf("duplicate top-level name %q (declared in %q and %q)", name, a, b)
 }
 
 func (r *Resolver) resolveBodies() {

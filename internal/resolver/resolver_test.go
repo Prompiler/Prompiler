@@ -85,6 +85,18 @@ func TestDuplicateGlobal(t *testing.T) {
 		diags := resolveSrcs(t, map[string]string{"a.ppl": src})
 		require.Len(t, diags, 1)
 		assert.Equal(t, token.CatDuplicateName, diags[0].Category)
+		assert.Contains(t, diags[0].Message, "a.ppl")
+	})
+
+	t.Run("duplicate across files lists both paths", func(t *testing.T) {
+		diags := resolveSrcs(t, map[string]string{
+			"b/named.ppl": "class Named { x: string }\n",
+			"a/named.ppl": "class Named { y: string }\n",
+		})
+		require.Len(t, diags, 1)
+		assert.Equal(t, token.CatDuplicateName, diags[0].Category)
+		assert.Contains(t, diags[0].Message, "a/named.ppl")
+		assert.Contains(t, diags[0].Message, "b/named.ppl")
 	})
 }
 
