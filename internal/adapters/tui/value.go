@@ -236,3 +236,84 @@ func validateField(path string, f *FormField) []fieldError {
 	}
 	return nil
 }
+
+// setValue populates f from a typed eval.Value, the inverse of FormField.Value.
+// It is used to pre-fill a freshly built form from a JSON file. Values whose
+// shape does not match the field's type are ignored, leaving the field blank.
+func setValue(f *FormField, v eval.Value) {
+	if f == nil {
+		return
+	}
+	switch tt := f.typ.(type) {
+	case types.Primitive:
+		if v.Type() == f.typ {
+			if s, ok := eval.Stringify(v); ok {
+				f.text = s
+			}
+		}
+	case *types.Enum:
+		if ev, ok := v.Type().(*types.Enum); ok && ev.Name == tt.Name {
+			if s, ok := eval.Stringify(v); ok {
+				f.text = s
+			}
+		}
+	case *types.Class:
+		cls, fields, ok := v.AsObject()
+		if ok && cls.Name == tt.Name {
+			setObjectFields(f.fields, fields)
+		}
+	case *types.Interface:
+		cls, fields, ok := v.AsObject()
+		if !ok {
+			return
+		}
+		for i, c := range f.choices {
+			if c.Name == cls.Name {
+				f.chooseClass(i)
+				setObjectFields(f.fields, fields)
+				break
+			}
+		}
+	case *types.Array:
+		elems, ok := v.AsArray()
+		if !ok {
+			return
+		}
+		f.elems = make([]*FormField, 0, len(elems))
+		for _, el := range elems {
+			sub := buildField(tt.Elem, f.env)
+			setValue(sub, el)
+			f.elems = append(f.elems, sub)
+		}
+	case *types.Map:
+		keys, vals, ok := v.AsMap()
+		if !ok {
+			return
+		}
+		f.entries = nil
+		for _, k := range keys {
+			val := buildField(tt.Value, f.env)
+			setValue(val, vals[k])
+			f.entries = append(f.entries, mapEntry{key: k, value: val})
+		}
+	case *types.Optional:
+		present, val, ok := v.AsOptional()
+		if !ok {
+			return
+		}
+		f.present = present
+		if present && f.child != nil {
+			setValue(f.child, val)
+		}
+	}
+}
+
+// setObjectFields fills labelled child fields from an object's field map,
+// leaving children absent from the map blank.
+func setObjectFields(fields []*FormField, vals map[string]eval.Value) {
+	for _, sub := range fields {
+		if v, ok := vals[sub.label]; ok {
+			setValue(sub, v)
+		}
+	}
+}

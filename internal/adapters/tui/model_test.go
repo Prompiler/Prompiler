@@ -3,9 +3,12 @@ package tui
 import (
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/mattn/go-runewidth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -87,6 +90,13 @@ var (
 
 func tap(m *Model, msg tea.Msg) { m.Update(msg) }
 
+// openTemplateSkip selects the currently highlighted template and then skips the
+// JSON pre-fill prompt (Enter with an empty path), landing on the form stage.
+func openTemplateSkip(m *Model) {
+	tap(m, keyEnterMsg) // browse: open the selected template
+	tap(m, keyEnterMsg) // preload: empty path skips pre-fill
+}
+
 func modelForSource(t *testing.T, files map[string]string) *Model {
 	t.Helper()
 	app := domain.NewApplication(&source.MemSource{Files: files}, builtin.NewRegistry())
@@ -105,6 +115,11 @@ func TestModelFlowEndToEnd(t *testing.T) {
 	assert.Contains(t, m.View(), "demo.ppl")
 
 	tap(m, keyEnterMsg) // open Demo
+	require.Equal(t, stagePreload, m.stage)
+	assert.Nil(t, m.form, "the form is built only once the pre-fill prompt is answered")
+	assert.Contains(t, m.View(), "Open template: Demo")
+
+	tap(m, keyEnterMsg) // skip JSON pre-fill
 	require.Equal(t, stageForm, m.stage)
 	require.NotNil(t, m.form)
 	assert.NotEmpty(t, m.View())
@@ -211,7 +226,7 @@ func TestModelFlowEndToEnd(t *testing.T) {
 
 func TestModelAddToEmptyCollection(t *testing.T) {
 	m := modelForSource(t, map[string]string{"demo.ppl": modelSource})
-	tap(m, keyEnterMsg) // open Demo
+	openTemplateSkip(m) // select Demo, skip JSON pre-fill
 	require.Equal(t, stageForm, m.stage)
 
 	// Descend into the empty scores array via Enter, then add inside it.
@@ -240,7 +255,7 @@ func TestModelAddToEmptyCollection(t *testing.T) {
 
 func TestModelEnumChooser(t *testing.T) {
 	m := modelForSource(t, map[string]string{"enum.ppl": enumSource})
-	tap(m, keyEnterMsg) // open EnumTest
+	openTemplateSkip(m) // open EnumTest, skip JSON pre-fill
 	require.Equal(t, stageForm, m.stage)
 
 	// Entering the enum opens a chooser listing its members.
@@ -259,7 +274,7 @@ func TestModelEnumChooser(t *testing.T) {
 
 func TestModelOptionalEdit(t *testing.T) {
 	m := modelForSource(t, map[string]string{"opt.ppl": optionalSource})
-	tap(m, keyEnterMsg) // open OptTest
+	openTemplateSkip(m) // open OptTest, skip JSON pre-fill
 	require.Equal(t, stageForm, m.stage)
 
 	nick := mustField(t, m.form, "nickname")
@@ -285,7 +300,7 @@ func TestModelOptionalEdit(t *testing.T) {
 
 func TestModelMapEntryKeyThenValue(t *testing.T) {
 	m := modelForSource(t, map[string]string{"demo.ppl": modelSource})
-	tap(m, keyEnterMsg) // open Demo
+	openTemplateSkip(m) // open Demo, skip JSON pre-fill
 	require.Equal(t, stageForm, m.stage)
 
 	// Navigate to tags (row 4) and add an entry.
@@ -312,7 +327,7 @@ func TestModelMapEntryKeyThenValue(t *testing.T) {
 
 func TestModelBackFromForm(t *testing.T) {
 	m := modelForSource(t, map[string]string{"demo.ppl": modelSource})
-	tap(m, keyEnterMsg) // open Demo
+	openTemplateSkip(m) // open Demo, skip JSON pre-fill
 	require.Equal(t, stageForm, m.stage)
 
 	// Drill into the Person class; left arrow backs up within the form.
@@ -332,7 +347,7 @@ func TestModelBackFromForm(t *testing.T) {
 
 func TestModelScalarValidation(t *testing.T) {
 	m := modelForSource(t, map[string]string{"dbz.ppl": divZeroSource})
-	tap(m, keyEnterMsg) // open DivisionByZero
+	openTemplateSkip(m) // open DivisionByZero, skip JSON pre-fill
 	require.Equal(t, stageForm, m.stage)
 
 	// n (int): typing an invalid value is rejected with an error.
@@ -352,7 +367,7 @@ func TestModelStdoutDefersOutput(t *testing.T) {
 	m := modelForSource(t, map[string]string{
 		"s.ppl": "template Simple {\n  variables { name: string }\n  prompt { Hello {{ name }} }\n}\n",
 	})
-	tap(m, keyEnterMsg) // open Simple
+	openTemplateSkip(m) // open Simple, skip JSON pre-fill
 	require.Equal(t, stageForm, m.stage)
 
 	tap(m, keyEnterMsg) // edit name
@@ -370,7 +385,7 @@ func TestModelStdoutDefersOutput(t *testing.T) {
 func TestModelDivisionByZeroReturnsToForm(t *testing.T) {
 	m := modelForSource(t, map[string]string{"dbz.ppl": divZeroSource})
 
-	tap(m, keyEnterMsg) // select DivisionByZero
+	openTemplateSkip(m) // select DivisionByZero, skip JSON pre-fill
 	require.Equal(t, stageForm, m.stage)
 
 	// fill the required ints
@@ -411,7 +426,7 @@ func TestModelDivisionByZeroReturnsToForm(t *testing.T) {
 
 func TestModelEscBacksOutOfNestedViews(t *testing.T) {
 	m := modelForSource(t, map[string]string{"demo.ppl": modelSource})
-	tap(m, keyEnterMsg) // open Demo
+	openTemplateSkip(m) // open Demo, skip JSON pre-fill
 	require.Equal(t, stageForm, m.stage)
 
 	// descend to the Person class then back out
@@ -504,7 +519,304 @@ func TestModelBrowseSelectsPerDirectory(t *testing.T) {
 	require.Len(t, m.templates, 2)
 	require.Empty(t, m.browseErr)
 
-	tap(m, keyEnterMsg) // open the first template (in a/)
+	openTemplateSkip(m) // open the first template (in a/), skip JSON pre-fill
 	require.Equal(t, stageForm, m.stage)
 	require.Equal(t, "One", m.templateName)
+}
+
+// sgrPattern matches the SGR (colour/style) escape sequences lipgloss emits.
+var sgrPattern = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// stripANSI removes the styling escape sequences that View() embeds, leaving
+// the visible text for width measurement.
+func stripANSI(s string) string { return sgrPattern.ReplaceAllString(s, "") }
+
+// assertViewFitsWidth strips ANSI styling and asserts that every rendered line
+// is at most width display cells wide.
+func assertViewFitsWidth(t *testing.T, m *Model, width int) {
+	t.Helper()
+	clean := stripANSI(m.View())
+	for _, line := range strings.Split(clean, "\n") {
+		if w := runewidth.StringWidth(line); w > width {
+			t.Errorf("view line %d cells wide exceeds width %d: %q", w, width, line)
+		}
+	}
+}
+
+// countValueLines returns how many rendered (ANSI-stripped) lines carry the
+// given needle, proving a long value spans several physical lines.
+func countValueLines(t *testing.T, m *Model, needle string) int {
+	t.Helper()
+	n := 0
+	for _, line := range strings.Split(stripANSI(m.View()), "\n") {
+		if strings.Contains(line, needle) {
+			n++
+		}
+	}
+	return n
+}
+
+func TestModelAltEnterInsertsNewlineAndEnterCommits(t *testing.T) {
+	m := modelForSource(t, map[string]string{"demo.ppl": modelSource})
+	openTemplateSkip(m) // open Demo, skip JSON pre-fill
+	require.Equal(t, stageForm, m.stage)
+
+	// Begin editing the first scalar (name).
+	tap(m, keyEnterMsg)
+	require.Equal(t, editText, m.editKind)
+
+	tap(m, keyText("hello"))
+
+	// Alt+Enter must insert a newline, not commit the field.
+	altEnter := tea.KeyMsg{Type: tea.KeyEnter, Alt: true}
+	tap(m, altEnter)
+	require.Equal(t, editText, m.editKind, "alt+enter must not commit the field")
+	require.Contains(t, m.ti.Value(), "\n")
+
+	// Typing after the newline lands on the second line.
+	tap(m, keyText("world"))
+	require.Equal(t, "hello\nworld", m.ti.Value())
+
+	// Plain Enter still commits the (now multiline) value.
+	tap(m, keyEnterMsg)
+	require.Equal(t, editNone, m.editKind)
+	require.Equal(t, "hello\nworld", mustField(t, m.form, "name").text)
+}
+
+func TestModelAltEnterWorksWhenEditingMapKey(t *testing.T) {
+	m := modelForSource(t, map[string]string{"demo.ppl": modelSource})
+	openTemplateSkip(m) // open Demo, skip JSON pre-fill
+	require.Equal(t, stageForm, m.stage)
+
+	// Navigate to tags (row 4), add an entry, and edit its key.
+	tap(m, keyDownMsg) // 1 count
+	tap(m, keyDownMsg) // 2 person
+	tap(m, keyDownMsg) // 3 scores
+	tap(m, keyDownMsg) // 4 tags
+	tap(m, keyRune('a'))
+	require.Len(t, mustField(t, m.form, "tags").entries, 1)
+
+	tap(m, keyRune('k')) // edit the entry key
+	require.Equal(t, editKey, m.editKind)
+
+	tap(m, keyText("lang"))
+	// Move the cursor into the middle of the key so the newline splits it
+	// deterministically (no trailing blank line).
+	tap(m, keyLeftMsg) // before 'g'
+	tap(m, keyLeftMsg) // before 'n'
+	altEnter := tea.KeyMsg{Type: tea.KeyEnter, Alt: true}
+	tap(m, altEnter)
+	require.Equal(t, editKey, m.editKind, "alt+enter must not commit the map key")
+	require.Equal(t, "la\nng", m.ti.Value())
+
+	// A plain Enter commits the key even after an Alt+Enter.
+	tap(m, keyEnterMsg)
+	require.Equal(t, editNone, m.editKind)
+	require.Equal(t, "la\nng", mustField(t, m.form, "tags").entries[0].key)
+}
+
+func TestModelViewWrapsLongValues(t *testing.T) {
+	m := modelForSource(t, map[string]string{"demo.ppl": modelSource})
+	openTemplateSkip(m) // open Demo, skip JSON pre-fill
+	require.Equal(t, stageForm, m.stage)
+
+	const width = 100
+	m.width = width
+	long := strings.Repeat("a", 300)
+
+	// While editing, the in-progress value is wrapped onto several lines, none
+	// exceeding the terminal width.
+	tap(m, keyEnterMsg) // edit name
+	require.Equal(t, editText, m.editKind)
+	tap(m, keyText(long))
+	assertViewFitsWidth(t, m, width)
+	assert.GreaterOrEqual(t, countValueLines(t, m, "a"), 3, "the long value must wrap across lines")
+
+	// After committing, the form row renders the stored value wrapped too.
+	tap(m, keyEnterMsg)
+	require.Equal(t, editNone, m.editKind)
+	require.Equal(t, long, mustField(t, m.form, "name").text)
+	assertViewFitsWidth(t, m, width)
+	assert.GreaterOrEqual(t, countValueLines(t, m, "a"), 3, "the stored value must wrap across lines")
+}
+
+func TestModelViewWrapsMultilineCommittedValue(t *testing.T) {
+	m := modelForSource(t, map[string]string{"demo.ppl": modelSource})
+	openTemplateSkip(m)
+	require.Equal(t, stageForm, m.stage)
+
+	const width = 100
+	m.width = width
+
+	// A stored value containing newlines must render across several physical
+	// lines (indented under the row), none of which exceeds the width.
+	name := mustField(t, m.form, "name")
+	name.text = strings.Repeat("x", 90) + "\n" + strings.Repeat("y", 90)
+	assertViewFitsWidth(t, m, width)
+	assert.GreaterOrEqual(t, countValueLines(t, m, "x"), 2, "the first line must wrap")
+	assert.GreaterOrEqual(t, countValueLines(t, m, "y"), 2, "the second line must wrap")
+}
+
+// --- JSON pre-fill / optional step ---
+
+// prefillSource covers every pre-fillable shape plus a variable absent from the
+// JSON (memo) that must stay blank.
+const prefillSource = `
+enum Level { Low, High }
+
+class Address {
+  street: string
+}
+
+interface Named {
+  name: string
+}
+
+class User {
+  name: string
+  addr: Address
+}
+
+template Prefill {
+  variables {
+    title: string
+    level: Level
+    user: User
+    thing: Named
+    scores: int[]
+    tags: map<string, int>
+    nickname: Optional<string>
+    memo: string
+  }
+  prompt { {{ title }} }
+}
+`
+
+const prefillJSON = `{
+  "title": "Hello",
+  "level": "High",
+  "user": { "name": "Ada", "addr": { "street": "Main St" } },
+  "thing": { "$type": "User", "name": "Zed" },
+  "scores": [1, 2, 3],
+  "tags": { "b": 2, "a": 1 },
+  "nickname": "A"
+}`
+
+func TestModelSelectingTemplateLandsOnPreload(t *testing.T) {
+	m := modelForSource(t, map[string]string{"pf.ppl": prefillSource})
+	tap(m, keyEnterMsg) // select the Prefill template
+	require.Equal(t, stagePreload, m.stage)
+	require.NotEmpty(t, m.View())
+}
+
+func TestModelPreloadPrefillsFromJSON(t *testing.T) {
+	m := modelForSource(t, map[string]string{"pf.ppl": prefillSource})
+	tap(m, keyEnterMsg) // select Prefill
+	require.Equal(t, stagePreload, m.stage)
+
+	path := filepath.Join(t.TempDir(), "values.json")
+	require.NoError(t, os.WriteFile(path, []byte(prefillJSON), 0o644))
+	tap(m, keyText(path))
+	tap(m, keyEnterMsg) // load and pre-fill
+
+	require.Equal(t, stageForm, m.stage)
+	require.Nil(t, m.view.parent)
+	assert.Empty(t, m.formErr)
+
+	// scalars and enums
+	assert.Equal(t, "Hello", mustField(t, m.form, "title").text)
+	assert.Equal(t, "High", mustField(t, m.form, "level").text)
+
+	// class with a nested class
+	user := mustField(t, m.form, "user")
+	require.Len(t, user.fields, 2)
+	assert.Equal(t, "Ada", user.fields[0].text)
+	assert.Equal(t, "Main St", user.fields[1].fields[0].text)
+
+	// interface resolved via $type
+	thing := mustField(t, m.form, "thing")
+	require.GreaterOrEqual(t, thing.chosen, 0)
+	assert.Equal(t, "User", thing.choices[thing.chosen].Name)
+	require.Len(t, thing.fields, 2) // User.name + User.addr (addr blank: absent from JSON)
+	assert.Equal(t, "Zed", thing.fields[0].text)
+	assert.True(t, thing.fields[1].isBlank())
+
+	// array
+	scores := mustField(t, m.form, "scores")
+	require.Len(t, scores.elems, 3)
+	for i, want := range []string{"1", "2", "3"} {
+		assert.Equal(t, want, scores.elems[i].text)
+	}
+
+	// map (key order preserved)
+	tags := mustField(t, m.form, "tags")
+	require.Len(t, tags.entries, 2)
+	assert.Equal(t, "b", tags.entries[0].key)
+	assert.Equal(t, "2", tags.entries[0].value.text)
+	assert.Equal(t, "a", tags.entries[1].key)
+	assert.Equal(t, "1", tags.entries[1].value.text)
+
+	// optional present
+	nick := mustField(t, m.form, "nickname")
+	require.True(t, nick.present)
+	require.NotNil(t, nick.child)
+	assert.Equal(t, "A", nick.child.text)
+
+	// a variable absent from the JSON is left blank
+	assert.True(t, mustField(t, m.form, "memo").isBlank())
+}
+
+func TestModelPreloadSkipLeavesBlankForm(t *testing.T) {
+	m := modelForSource(t, map[string]string{"pf.ppl": prefillSource})
+	tap(m, keyEnterMsg) // select Prefill
+	require.Equal(t, stagePreload, m.stage)
+
+	tap(m, keyEnterMsg) // empty path skips pre-fill
+	require.Equal(t, stageForm, m.stage)
+	for _, label := range []string{"title", "level", "user", "thing", "scores", "tags", "nickname", "memo"} {
+		assert.True(t, mustField(t, m.form, label).isBlank(), "variable %q should be blank after a skip", label)
+	}
+}
+
+func TestModelPreloadEscReturnsToBrowse(t *testing.T) {
+	m := modelForSource(t, map[string]string{"pf.ppl": prefillSource})
+	tap(m, keyEnterMsg) // select Prefill
+	require.Equal(t, stagePreload, m.stage)
+
+	tap(m, keyEscMsg)
+	require.Equal(t, stageBrowse, m.stage)
+	require.Empty(t, m.preloadErr)
+}
+
+func TestModelPreloadBadPathShowsErrorAndStays(t *testing.T) {
+	m := modelForSource(t, map[string]string{"pf.ppl": prefillSource})
+	tap(m, keyEnterMsg) // select Prefill
+	require.Equal(t, stagePreload, m.stage)
+
+	missing := filepath.Join(t.TempDir(), "nope.json")
+	tap(m, keyText(missing))
+	tap(m, keyEnterMsg)
+
+	require.Equal(t, stagePreload, m.stage, "a missing file must not leave the preload stage")
+	require.NotEmpty(t, m.preloadErr)
+	assert.Contains(t, m.View(), "nope.json")
+
+	// Esc still returns to browse after an error.
+	tap(m, keyEscMsg)
+	require.Equal(t, stageBrowse, m.stage)
+}
+
+func TestModelPreloadBadJSONShowsErrorAndStays(t *testing.T) {
+	m := modelForSource(t, map[string]string{"pf.ppl": prefillSource})
+	tap(m, keyEnterMsg) // select Prefill
+	require.Equal(t, stagePreload, m.stage)
+
+	path := filepath.Join(t.TempDir(), "bad.json")
+	require.NoError(t, os.WriteFile(path, []byte("{ not json"), 0o644))
+	tap(m, keyText(path))
+	tap(m, keyEnterMsg)
+
+	require.Equal(t, stagePreload, m.stage)
+	require.NotEmpty(t, m.preloadErr)
+	assert.Nil(t, m.form, "a bad JSON file must not open the form")
 }

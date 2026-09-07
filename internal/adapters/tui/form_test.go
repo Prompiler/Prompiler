@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Jh123x/prompiler/internal/ast"
+	"github.com/Jh123x/prompiler/internal/eval"
 	"github.com/Jh123x/prompiler/internal/types"
 )
 
@@ -267,4 +268,111 @@ func TestBuildFormNilTemplate(t *testing.T) {
 	form := BuildForm(nil, map[string]types.Type{}, &types.Env{Types: map[string]types.Type{}})
 	require.NotNil(t, form)
 	assert.Empty(t, form.Fields)
+}
+
+// --- setValue: populating a FormField from a typed eval.Value ---
+
+func TestSetValuePrimitive(t *testing.T) {
+	cases := []struct {
+		name string
+		typ  types.Type
+		val  eval.Value
+		want string
+	}{
+		{name: "string", typ: types.TypeString, val: eval.StringVal("hi"), want: "hi"},
+		{name: "int", typ: types.TypeInt, val: eval.IntVal(42), want: "42"},
+		{name: "float", typ: types.TypeFloat, val: eval.FloatVal(2.5), want: "2.5"},
+		{name: "bool", typ: types.TypeBool, val: eval.BoolVal(true), want: "true"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			f := BuildField(c.typ)
+			setValue(f, c.val)
+			assert.Equal(t, c.want, f.text)
+		})
+	}
+}
+
+func TestSetValueEnum(t *testing.T) {
+	enum := &types.Enum{Name: "Level", Members: []string{"Low", "High"}}
+	f := BuildField(enum)
+	setValue(f, eval.EnumVal("Level", "High"))
+	assert.Equal(t, "High", f.text)
+}
+
+func TestSetValueClass(t *testing.T) {
+	_, pair, _, _, _ := testTypes()
+	f := BuildField(pair)
+	setValue(f, eval.ObjectVal(pair, map[string]eval.Value{
+		"a": eval.IntVal(1),
+		"b": eval.StringVal("hi"),
+	}))
+	require.Len(t, f.fields, 2)
+	assert.Equal(t, "1", f.fields[0].text)
+	assert.Equal(t, "hi", f.fields[1].text)
+}
+
+func TestSetValueInterface(t *testing.T) {
+	_, _, shape, circle, _ := testTypes()
+	f := BuildField(shape)
+	// No env yet, so the interface has no satisfying classes.
+	setValue(f, eval.ObjectVal(circle, map[string]eval.Value{"size": eval.IntVal(5)}))
+	assert.Equal(t, -1, f.chosen, "an interface without choices cannot be pre-filled")
+
+	// With an env, matching by name selects the class and fills its fields.
+	env := &types.Env{Types: map[string]types.Type{"Shape": shape, "Circle": circle}}
+	f = BuildField(shape)
+	f.choices = satisfyingClasses(shape, env) // Circle only
+	setValue(f, eval.ObjectVal(circle, map[string]eval.Value{"size": eval.IntVal(5)}))
+	require.GreaterOrEqual(t, f.chosen, 0)
+	assert.Equal(t, "Circle", f.choices[f.chosen].Name)
+	require.Len(t, f.fields, 1)
+	assert.Equal(t, "5", f.fields[0].text)
+}
+
+func TestSetValueArray(t *testing.T) {
+	arr := &types.Array{Elem: types.TypeInt}
+	f := BuildField(arr)
+	setValue(f, eval.ArrayVal(types.TypeInt, []eval.Value{eval.IntVal(1), eval.IntVal(2), eval.IntVal(3)}))
+	require.Len(t, f.elems, 3)
+	for i, want := range []string{"1", "2", "3"} {
+		assert.Equal(t, want, f.elems[i].text)
+	}
+}
+
+func TestSetValueMap(t *testing.T) {
+	m := &types.Map{Value: types.TypeString}
+	f := BuildField(m)
+	setValue(f, eval.MapVal(types.TypeString,
+		[]string{"b", "a"},
+		map[string]eval.Value{"b": eval.StringVal("2"), "a": eval.StringVal("1")},
+	))
+	require.Len(t, f.entries, 2)
+	assert.Equal(t, "b", f.entries[0].key)
+	assert.Equal(t, "2", f.entries[0].value.text)
+	assert.Equal(t, "a", f.entries[1].key)
+	assert.Equal(t, "1", f.entries[1].value.text)
+}
+
+func TestSetValueOptional(t *testing.T) {
+	t.Run("some marks present and fills the child", func(t *testing.T) {
+		f := BuildField(&types.Optional{Elem: types.TypeInt})
+		setValue(f, eval.SomeVal(eval.IntVal(9)))
+		assert.True(t, f.present)
+		require.NotNil(t, f.child)
+		assert.Equal(t, "9", f.child.text)
+	})
+
+	t.Run("none leaves the optional unpresent", func(t *testing.T) {
+		f := BuildField(&types.Optional{Elem: types.TypeInt})
+		setValue(f, eval.NoneVal(types.TypeInt))
+		assert.False(t, f.present)
+	})
+}
+
+func TestSetValueTypeMismatchLeavesBlank(t *testing.T) {
+	// An int field fed an object value must stay blank rather than panic.
+	f := BuildField(types.TypeInt)
+	setValue(f, eval.StringVal("nope"))
+	assert.Equal(t, "", f.text)
 }

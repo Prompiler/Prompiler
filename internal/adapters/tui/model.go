@@ -9,12 +9,16 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/Jh123x/prompiler/internal/adapters/jsonvalue"
 	"github.com/Jh123x/prompiler/internal/adapters/output"
 	"github.com/Jh123x/prompiler/internal/ast"
 	"github.com/Jh123x/prompiler/internal/domain"
+	"github.com/Jh123x/prompiler/internal/eval"
 	"github.com/Jh123x/prompiler/internal/token"
 	"github.com/Jh123x/prompiler/internal/types"
 )
@@ -24,6 +28,7 @@ type stage int
 
 const (
 	stageBrowse stage = iota
+	stagePreload
 	stageForm
 	stageOutput
 	stageResult
@@ -80,6 +85,7 @@ type formView struct {
 type Model struct {
 	app   *domain.Application
 	stage stage
+	width int // terminal width in columns (0 until known; termWidth defaults it)
 
 	// browse
 	rootPath     string
@@ -90,6 +96,11 @@ type Model struct {
 	pathEdit     bool
 	pathInput    textinput.Model
 
+	// preload (JSON pre-fill prompt, shown after a template is selected)
+	pendingTemplate domain.TemplateInfo
+	preloadInput    textinput.Model
+	preloadErr      string
+
 	// form
 	templateName string
 	prog         *domain.Program
@@ -98,7 +109,7 @@ type Model struct {
 	formErr      string
 
 	// text editor (scalar values and map keys)
-	ti           textinput.Model
+	ti           textarea.Model
 	editKind     editKind
 	editField    *FormField
 	editEntry    *mapEntry
@@ -126,16 +137,24 @@ func newModel(app *domain.Application, root string) *Model {
 	if root == "" {
 		root = defaultRoot
 	}
-	m := &Model{app: app, stage: stageBrowse, rootPath: root}
+	m := &Model{app: app, stage: stageBrowse, rootPath: root, width: 80}
 	m.pathInput = textinput.New()
 	m.pathInput.Prompt = ""
 	m.pathInput.Placeholder = "path to .ppl files"
-	m.ti = textinput.New()
+	m.ti = textarea.New()
 	m.ti.Prompt = ""
-	m.ti.Placeholder = "type and press enter"
+	m.ti.Placeholder = "type and press enter (alt+enter for a new line)"
+	m.ti.ShowLineNumbers = false
+	// A plain Enter commits the field from updateForm; a newline is inserted
+	// only on Alt+Enter.
+	m.ti.KeyMap.InsertNewline = key.NewBinding(key.WithKeys("alt+enter"))
+	m.ti.SetWidth(m.width)
 	m.fileInput = textinput.New()
 	m.fileInput.Prompt = ""
 	m.fileInput.Placeholder = "output file path"
+	m.preloadInput = textinput.New()
+	m.preloadInput.Prompt = ""
+	m.preloadInput.Placeholder = "path to variables JSON (enter to skip)"
 	m.reloadBrowse()
 	return m
 }
@@ -145,22 +164,31 @@ func (m *Model) Init() tea.Cmd { return nil }
 
 // Update implements tea.Model.
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	key, ok := msg.(tea.KeyMsg)
-	if !ok {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		// Remember the terminal width so views can wrap long values; feed it to
+		// the multiline editor so its cursor/scroll math matches the display.
+		if msg.Width > 0 {
+			m.width = msg.Width
+			m.ti.SetWidth(msg.Width)
+		}
 		return m, nil
-	}
-	if key.Type == tea.KeyCtrlC {
-		return m, tea.Quit
-	}
-	switch m.stage {
-	case stageBrowse:
-		return m, m.updateBrowse(key)
-	case stageForm:
-		return m, m.updateForm(key)
-	case stageOutput:
-		return m, m.updateOutput(key)
-	case stageResult:
-		return m, m.updateResult(key)
+	case tea.KeyMsg:
+		if msg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
+		}
+		switch m.stage {
+		case stageBrowse:
+			return m, m.updateBrowse(msg)
+		case stagePreload:
+			return m, m.updatePreload(msg)
+		case stageForm:
+			return m, m.updateForm(msg)
+		case stageOutput:
+			return m, m.updateOutput(msg)
+		case stageResult:
+			return m, m.updateResult(msg)
+		}
 	}
 	return m, nil
 }
@@ -221,7 +249,7 @@ func (m *Model) updateBrowse(key tea.KeyMsg) tea.Cmd {
 			if len(ti.Diagnostics) > 0 {
 				m.browseDetail = formatDiags(ti.Diagnostics)
 			} else {
-				m.openTemplate(ti)
+				m.beginPreload(ti)
 			}
 		}
 	case key.Type == tea.KeyUp:
@@ -246,12 +274,22 @@ func (m *Model) updateBrowse(key tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) openTemplate(ti domain.TemplateInfo) {
+func (m *Model) openTemplate(ti domain.TemplateInfo) error {
+	prog, td, err := m.resolveTemplate(ti)
+	if err != nil {
+		return err
+	}
+	m.activateTemplate(prog, td, ti, nil)
+	return nil
+}
+
+// resolveTemplate analyzes the directory containing ti and returns the program
+// and the matching template declaration.
+func (m *Model) resolveTemplate(ti domain.TemplateInfo) (*domain.Program, *ast.TemplateDecl, error) {
 	root := filepath.Join(m.rootPath, filepath.Dir(ti.Path))
 	prog, diags := m.app.AnalyzeRoot(root)
 	if len(diags) > 0 {
-		m.browseErr = formatDiags(diags)
-		return
+		return nil, nil, fmt.Errorf("%s", formatDiags(diags))
 	}
 	var td *ast.TemplateDecl
 	for _, f := range prog.Files {
@@ -262,27 +300,111 @@ func (m *Model) openTemplate(ti domain.TemplateInfo) {
 		}
 	}
 	if td == nil {
-		m.browseErr = fmt.Sprintf("template %q not found", ti.Name)
-		return
+		return nil, nil, fmt.Errorf("template %q not found", ti.Name)
 	}
+	return prog, td, nil
+}
+
+// activateTemplate builds the editable form for ti and (when prefill is
+// non-empty) populates its matching fields, then enters the form stage.
+func (m *Model) activateTemplate(prog *domain.Program, td *ast.TemplateDecl, ti domain.TemplateInfo, prefill eval.InputValues) {
 	m.prog = prog
 	m.templateName = ti.Name
 	m.form = BuildForm(td, prog.Sem.TemplateVars[ti.Name], prog.Sem.Env)
+	for _, fd := range m.form.Fields {
+		if v, ok := prefill[fd.label]; ok {
+			setValue(fd, v)
+		}
+	}
 	m.view = rootView(m.form, ti.Name)
 	m.formErr = ""
 	m.stage = stageForm
+}
+
+// --- preload (optional JSON pre-fill step) ---
+
+// beginPreload records the selected template and shows the JSON path prompt.
+func (m *Model) beginPreload(ti domain.TemplateInfo) {
+	m.pendingTemplate = ti
+	m.preloadErr = ""
+	m.preloadInput.SetValue("")
+	m.preloadInput.CursorEnd()
+	m.preloadInput.Focus()
+	m.stage = stagePreload
+}
+
+func (m *Model) updatePreload(key tea.KeyMsg) tea.Cmd {
+	switch {
+	case key.Type == tea.KeyEsc, key.Type == tea.KeyLeft:
+		m.preloadInput.Blur()
+		m.pendingTemplate = domain.TemplateInfo{}
+		m.preloadErr = ""
+		m.stage = stageBrowse
+	case key.Type == tea.KeyEnter, key.Type == tea.KeyRight:
+		return m.confirmPreload(strings.TrimSpace(m.preloadInput.Value()))
+	default:
+		m.preloadInput, _ = m.preloadInput.Update(key)
+	}
+	return nil
+}
+
+// confirmPreload resolves the preload prompt: an empty path skips pre-fill, a
+// path loads that JSON and pre-fills the matching variables. Errors are shown on
+// the preload screen rather than crashing.
+func (m *Model) confirmPreload(path string) tea.Cmd {
+	m.preloadInput.Blur()
+	if path == "" {
+		if err := m.openTemplate(m.pendingTemplate); err != nil {
+			m.preloadErr = err.Error()
+			m.preloadInput.Focus()
+		}
+		return nil
+	}
+	prog, td, err := m.resolveTemplate(m.pendingTemplate)
+	if err != nil {
+		m.preloadErr = err.Error()
+		m.preloadInput.Focus()
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		m.preloadErr = fmt.Sprintf("read %s: %v", path, err)
+		m.preloadInput.Focus()
+		return nil
+	}
+	vs, err := jsonvalue.New(data, prog.Sem.Env)
+	if err != nil {
+		m.preloadErr = fmt.Sprintf("invalid JSON: %v", err)
+		m.preloadInput.Focus()
+		return nil
+	}
+	vars := make([]domain.Variable, 0, len(prog.Sem.TemplateVars[m.pendingTemplate.Name]))
+	for n, t := range prog.Sem.TemplateVars[m.pendingTemplate.Name] {
+		vars = append(vars, domain.Variable{Name: n, Type: t})
+	}
+	prefill, err := vs.Provide(vars)
+	if err != nil {
+		m.preloadErr = fmt.Sprintf("pre-fill failed: %v", err)
+		m.preloadInput.Focus()
+		return nil
+	}
+	m.activateTemplate(prog, td, m.pendingTemplate, prefill)
+	return nil
 }
 
 // --- form ---
 
 func (m *Model) updateForm(key tea.KeyMsg) tea.Cmd {
 	if m.editKind != editNone {
-		switch key.Type {
-		case tea.KeyEnter, tea.KeyRight:
+		switch {
+		case key.Type == tea.KeyEnter && !key.Alt:
+			// A plain Enter commits the field. Alt+Enter (which carries Alt and
+			// renders as "alt+enter") falls through to the editor and inserts a
+			// newline instead.
 			m.commitEdit()
-		case tea.KeyEsc, tea.KeyLeft:
+		case key.Type == tea.KeyEsc:
 			m.endEdit()
-		case tea.KeyDown:
+		case key.Type == tea.KeyDown:
 			if m.editOptional != nil {
 				m.selectOptionalNone()
 			} else {

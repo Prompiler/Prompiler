@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mattn/go-runewidth"
+
 	"github.com/Jh123x/prompiler/internal/eval"
 	"github.com/Jh123x/prompiler/internal/types"
 )
@@ -15,6 +17,8 @@ func (m *Model) View() string {
 	switch m.stage {
 	case stageBrowse:
 		return m.viewBrowse()
+	case stagePreload:
+		return m.viewPreload()
 	case stageForm:
 		return m.viewForm()
 	case stageOutput:
@@ -23,6 +27,17 @@ func (m *Model) View() string {
 		return m.viewResult()
 	}
 	return ""
+}
+
+func (m *Model) viewPreload() string {
+	var b strings.Builder
+	b.WriteString(titleStyle.Render("Open template: "+m.pendingTemplate.Name) + "\n\n")
+	b.WriteString(rowStyle.Render("variables JSON path: "+m.preloadInput.Value()+"█") + "\n")
+	if m.preloadErr != "" {
+		b.WriteString("\n" + errStyle.Render(m.preloadErr) + "\n")
+	}
+	b.WriteString(hintStyle.Render("\nempty path skips pre-fill · →/enter loads · esc cancels") + "\n")
+	return b.String()
 }
 
 func (m *Model) viewBrowse() string {
@@ -79,6 +94,7 @@ func (m *Model) viewForm() string {
 	b.WriteString("\n")
 	if m.view != nil {
 		b.WriteString(hintStyle.Render("path: "+m.breadcrumb()) + "\n\n")
+		width := m.termWidth()
 		for i := range m.view.rows {
 			marker := "  "
 			style := rowStyle
@@ -86,7 +102,7 @@ func (m *Model) viewForm() string {
 				marker = "> "
 				style = selStyle
 			}
-			b.WriteString(style.Render(marker+m.describeRow(&m.view.rows[i], i)) + "\n")
+			b.WriteString(style.Render(wrapPrefixed(marker, m.describeRow(&m.view.rows[i], i), width)) + "\n")
 		}
 	}
 	if m.editKind != editNone {
@@ -97,7 +113,7 @@ func (m *Model) viewForm() string {
 		if m.editEntry != nil {
 			target = "map key"
 		}
-		b.WriteString("\n" + rowStyle.Render("editing "+target+": "+m.ti.Value()+"█") + "\n")
+		b.WriteString("\n" + rowStyle.Render(wrapPrefixed("editing "+target+": ", m.ti.Value()+"█", m.termWidth())) + "\n")
 		if m.editErr != "" {
 			b.WriteString(errStyle.Render(m.editErr) + "\n")
 		}
@@ -255,4 +271,83 @@ func plural(n int, word string) string {
 		return "1 " + word
 	}
 	return strconv.Itoa(n) + " " + word + "s"
+}
+
+// termWidth returns the terminal width in columns, defaulting to 80 when the
+// model has not yet received a WindowSizeMsg.
+func (m *Model) termWidth() int {
+	if m.width > 0 {
+		return m.width
+	}
+	return 80
+}
+
+// wrapPrefixed lays content out so that, when prefix leads the first line, no
+// rendered line is wider than width columns. Content may itself contain
+// newlines (a stored or in-progress multiline value); every line after the
+// first is indented to align beneath the content column. Long lines are broken
+// at the width boundary (words are not kept intact).
+func wrapPrefixed(prefix, content string, width int) string {
+	pw := runewidth.StringWidth(prefix)
+	avail := width - pw
+	if avail < 1 {
+		avail = 1
+	}
+	pad := strings.Repeat(" ", pw)
+	lines := wrapText(content, avail)
+	var b strings.Builder
+	for i, ln := range lines {
+		if i == 0 {
+			b.WriteString(prefix)
+		} else {
+			b.WriteString(pad)
+		}
+		b.WriteString(ln)
+		if i < len(lines)-1 {
+			b.WriteByte('\n')
+		}
+	}
+	return b.String()
+}
+
+// wrapText splits text into lines of at most width display cells. Embedded
+// newlines force line breaks; over-long lines are split mid-word.
+func wrapText(text string, width int) []string {
+	if width < 1 {
+		width = 1
+	}
+	var out []string
+	for _, ln := range strings.Split(text, "\n") {
+		if runewidth.StringWidth(ln) <= width {
+			out = append(out, ln)
+			continue
+		}
+		out = append(out, splitCells(ln, width)...)
+	}
+	if len(out) == 0 {
+		return []string{""}
+	}
+	return out
+}
+
+// splitCells greedily chunks s into lines of at most width display cells,
+// measuring rune widths so wide (e.g. CJK) runes never overflow.
+func splitCells(s string, width int) []string {
+	var (
+		lines []string
+		cur   strings.Builder
+		curW  int
+	)
+	for _, r := range s {
+		w := runewidth.RuneWidth(r)
+		if curW > 0 && curW+w > width {
+			lines = append(lines, cur.String())
+			cur.Reset()
+			curW = 0
+		}
+		cur.WriteRune(r)
+		curW += w
+	}
+	lines = append(lines, cur.String())
+	return lines
 }
