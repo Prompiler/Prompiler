@@ -44,11 +44,11 @@ func (m *Model) viewBrowse() string {
 			marker = "> "
 			style = selStyle
 		}
-		name := t.Name
+		line := t.Path + " — " + t.Name
 		if t.Description != "" {
-			name += " — " + t.Description
+			line += " — " + t.Description
 		}
-		b.WriteString(style.Render(marker+name) + "\n")
+		b.WriteString(style.Render(marker+line) + "\n")
 	}
 	if m.pathEdit {
 		b.WriteString("\n" + rowStyle.Render("root path: "+m.pathInput.Value()+"█  (enter confirm, esc cancel)") + "\n")

@@ -111,25 +111,32 @@ func (a *Application) AnalyzeRoot(root string) (*Program, []token.Diagnostic) {
 
 // TemplateInfo is a summary of a template for listing.
 type TemplateInfo struct {
+	Path        string // module path (relative to root) that declares the template
 	Name        string
 	Description string
 }
 
-// ListTemplates enumerates the templates reachable from root.
+// ListTemplates enumerates the templates reachable from root, ordered by source
+// path (then name, for files that declare multiple templates).
 func (a *Application) ListTemplates(root string) ([]TemplateInfo, error) {
 	prog, diags := a.AnalyzeRoot(root)
 	if len(diags) > 0 {
 		return nil, diagError(diags)
 	}
 	var out []TemplateInfo
-	for _, f := range prog.Files {
+	for path, f := range prog.Files {
 		for _, d := range f.Decls {
 			if td, ok := d.(*ast.TemplateDecl); ok {
-				out = append(out, TemplateInfo{Name: td.Name, Description: td.Description})
+				out = append(out, TemplateInfo{Path: path, Name: td.Name, Description: td.Description})
 			}
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Path != out[j].Path {
+			return out[i].Path < out[j].Path
+		}
+		return out[i].Name < out[j].Name
+	})
 	return out, nil
 }
 

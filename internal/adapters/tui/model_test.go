@@ -75,8 +75,8 @@ func TestModelFlowEndToEnd(t *testing.T) {
 
 	// --- browse: list and select the Demo template ---
 	require.Equal(t, stageBrowse, m.stage)
-	require.Equal(t, []domain.TemplateInfo{{Name: "Demo", Description: ""}}, m.templates)
-	assert.NotEmpty(t, m.View())
+	require.Equal(t, []domain.TemplateInfo{{Path: "demo.ppl", Name: "Demo", Description: ""}}, m.templates)
+	assert.Contains(t, m.View(), "demo.ppl")
 
 	tap(m, keyEnterMsg) // open Demo
 	require.Equal(t, stageForm, m.stage)
