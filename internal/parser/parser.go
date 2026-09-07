@@ -32,8 +32,9 @@ func (p *Parser) ParseFile() (*ast.File, []token.Diagnostic) {
 	for !p.atEOF() {
 		if d := p.parseDecl(); d != nil {
 			file.Decls = append(file.Decls, d)
+		} else {
+			p.syncDecl()
 		}
-		p.syncDecl()
 	}
 	return file, p.diags
 }
@@ -443,8 +444,9 @@ func (p *Parser) parseBlock() []ast.Stmt {
 	for !p.atEOF() && p.cur().Type != token.RBRACE {
 		if s := p.parseStmt(); s != nil {
 			stmts = append(stmts, s)
+		} else {
+			p.syncStmt()
 		}
-		p.syncStmt()
 	}
 	p.expect(token.RBRACE)
 	return stmts
