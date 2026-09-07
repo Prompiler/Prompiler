@@ -225,3 +225,24 @@ func TestAllExamplesLexCleanly(t *testing.T) {
 		}
 	})
 }
+
+func TestUnterminatedPromptBody(t *testing.T) {
+	t.Run("does not panic on an unclosed prompt block", func(t *testing.T) {
+		toks, _ := lex(t, "template T { prompt { hello")
+		hasBody := false
+		for _, tok := range toks {
+			if tok.Type == token.PROMPT_BODY {
+				hasBody = true
+			}
+		}
+		assert.True(t, hasBody, "expected a PROMPT_BODY token without panicking")
+	})
+}
+
+func TestIntOverflow(t *testing.T) {
+	t.Run("flags an out-of-range integer literal", func(t *testing.T) {
+		toks, _ := lex(t, "9223372036854775808")
+		require.Len(t, toks, 1)
+		assert.Equal(t, token.ILLEGAL, toks[0].Type)
+	})
+}

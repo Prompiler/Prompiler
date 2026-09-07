@@ -36,6 +36,7 @@ type TypeChecker struct {
 
 	typeParams      map[string]*TypeVar
 	savedTypeParams []map[string]*TypeVar
+	templates       map[string]*ast.TemplateDecl
 }
 
 // pushTypeParams extends the current type-parameter scope with params (for a
@@ -77,6 +78,7 @@ func (tc *TypeChecker) Check(files map[string]*ast.File, syms *resolver.SymbolTa
 
 	tc.collectTypes(files)
 	tc.collectFuncs(files)
+	tc.collectTemplateVars(files)
 	tc.checkDecls(files)
 
 	return tc.sm, tc.diags
@@ -298,19 +300,35 @@ func (tc *TypeChecker) checkFunc(fn *ast.FuncDecl) {
 	tc.returnType = nil
 }
 
+// collectTemplateVars registers every template and its variables' types before
+// bodies are checked, so include validation can see the whole template set.
+func (tc *TypeChecker) collectTemplateVars(files map[string]*ast.File) {
+	tc.templates = map[string]*ast.TemplateDecl{}
+	for _, file := range files {
+		for _, d := range file.Decls {
+			if td, ok := d.(*ast.TemplateDecl); ok {
+				tc.templates[td.Name] = td
+				varTypes := map[string]Type{}
+				for _, v := range td.Variables {
+					varTypes[v.Name] = tc.resolveTypeRef(v.Type)
+				}
+				tc.sm.TemplateVars[td.Name] = varTypes
+			}
+		}
+	}
+}
+
 func (tc *TypeChecker) checkTemplate(t *ast.TemplateDecl) {
 	sc := newTypeScope(nil)
-	varTypes := map[string]Type{}
+	varTypes := tc.sm.TemplateVars[t.Name]
 	for i := range t.Variables {
 		v := &t.Variables[i]
-		vt := tc.resolveTypeRef(v.Type)
-		varTypes[v.Name] = vt
+		vt := varTypes[v.Name]
 		sc.define(v.Name, vt)
 		if v.HasDefault {
 			tc.checkDefault(v, vt)
 		}
 	}
-	tc.sm.TemplateVars[t.Name] = varTypes
 	if t.Prompt != nil {
 		tc.checkPromptSegments(t.Prompt.Segments, sc)
 	}
@@ -397,12 +415,14 @@ func (tc *TypeChecker) checkStmts(stmts []ast.Stmt, sc *typeScope) {
 func (tc *TypeChecker) checkAssignTarget(target ast.Expr, vt Type, sc *typeScope) {
 	idx, ok := target.(*ast.Index)
 	if !ok {
-		// plain assignment: the target is an Ident; reassignment type is checked against its binding.
+		// plain assignment: the target must be an Ident; reassignment type is checked against its binding.
 		if id, ok := target.(*ast.Ident); ok {
 			if bound, ok := sc.lookup(id.Name); ok {
 				tc.requireAssignable(vt, bound, target.Span())
 			}
+			return
 		}
+		tc.err(token.CatTypeMismatch, target.Span(), "assignment target must be a variable or index")
 		return
 	}
 	recv := tc.checkExpr(idx.Recv, sc)
@@ -447,8 +467,28 @@ func (tc *TypeChecker) checkPromptSegments(segs []ast.PromptSegment, sc *typeSco
 			tc.checkPromptSegments(s.Then, sc)
 			tc.checkPromptSegments(s.Else, sc)
 		case *ast.IncludeSegment:
+			child := tc.templates[s.Template]
+			if child == nil {
+				tc.err(token.CatUnknownName, s.Span(), fmt.Sprintf("unknown template %q", s.Template))
+				break
+			}
+			childVarTypes := tc.sm.TemplateVars[s.Template]
+			provided := map[string]bool{}
 			for i := range s.Args {
-				tc.checkExpr(s.Args[i].Value, sc)
+				arg := &s.Args[i]
+				vt, ok := childVarTypes[arg.Name]
+				if !ok {
+					tc.err(token.CatTypeMismatch, s.Span(), fmt.Sprintf("template %s has no variable %q", s.Template, arg.Name))
+					continue
+				}
+				at := tc.checkExpr(arg.Value, sc)
+				tc.requireAssignable(at, vt, arg.Value.Span())
+				provided[arg.Name] = true
+			}
+			for _, v := range child.Variables {
+				if !v.HasDefault && !provided[v.Name] {
+					tc.err(token.CatTypeMismatch, s.Span(), fmt.Sprintf("missing required variable %q for template %s", v.Name, s.Template))
+				}
 			}
 		}
 	}
@@ -595,10 +635,14 @@ func (tc *TypeChecker) checkFieldAccess(x *ast.FieldAccess, sc *typeScope) Type 
 	if isInvalid(recv) {
 		return invalidT
 	}
-	// `length` property on string/array/map.
+	// `length` property on string/array/map (but not numeric/bool primitives).
 	if x.Field == "length" {
-		switch recv.(type) {
-		case Primitive, *Array, *Map:
+		switch r := recv.(type) {
+		case Primitive:
+			if r == TypeString {
+				return TypeInt
+			}
+		case *Array, *Map:
 			return TypeInt
 		}
 	}
@@ -684,6 +728,10 @@ func (tc *TypeChecker) checkCall(x *ast.Call, sc *typeScope) Type {
 // checkGenericCallArgs resolves or infers type arguments for a generic
 // function/method, checks bounds, substitutes, and checks the arguments.
 func (tc *TypeChecker) checkGenericCallArgs(typeArgs []ast.TypeRef, args []ast.Expr, typeParams []*TypeVar, params []Type, ret Type, span token.Span, sc *typeScope) (Type, *FuncSig) {
+	if len(args) != len(params) {
+		tc.err(token.CatTypeMismatch, span, fmt.Sprintf("expected %d arguments, got %d", len(params), len(args)))
+		return invalidT, nil
+	}
 	argTypes := make([]Type, len(args))
 	for i, a := range args {
 		argTypes[i] = tc.checkExpr(a, sc)

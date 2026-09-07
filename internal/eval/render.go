@@ -3,6 +3,7 @@ package eval
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Jh123x/prompiler/internal/ast"
 	"github.com/Jh123x/prompiler/internal/token"
@@ -101,7 +102,7 @@ func (c *TemplateComposer) renderSegments(segs []ast.PromptSegment, env *evalEnv
 				return "", rterr(token.CatTypeMismatch, s.Span(), "not stringable")
 			}
 			writeAnchored(&sb, str, col)
-			col = lastLineLen(str)
+			col += lastLineLen(str)
 		case *ast.ForSegment:
 			it, err := c.eval.EvalExpr(s.Iter, env)
 			if err != nil {
@@ -134,6 +135,9 @@ func (c *TemplateComposer) renderSegments(segs []ast.PromptSegment, env *evalEnv
 			col = lastLineLen(out)
 		case *ast.IncludeSegment:
 			child := c.templates[s.Template]
+			if child == nil || child.Prompt == nil {
+				return "", rterr(token.CatUnknownName, s.Span(), fmt.Sprintf("unknown template %q", s.Template))
+			}
 			childEnv := newEvalEnv(nil)
 			for _, a := range s.Args {
 				v, err := c.eval.EvalExpr(a.Value, env)
@@ -147,7 +151,7 @@ func (c *TemplateComposer) renderSegments(segs []ast.PromptSegment, env *evalEnv
 				return "", err
 			}
 			writeAnchored(&sb, out, col)
-			col = lastLineLen(out)
+			col += lastLineLen(out)
 		}
 	}
 	return sb.String(), nil
@@ -167,7 +171,7 @@ func writeAnchored(sb *strings.Builder, str string, col int) {
 
 func lastLineLen(s string) int {
 	if i := strings.LastIndexByte(s, '\n'); i >= 0 {
-		return len(s) - i - 1
+		return utf8.RuneCountInString(s[i+1:])
 	}
-	return len(s)
+	return utf8.RuneCountInString(s)
 }

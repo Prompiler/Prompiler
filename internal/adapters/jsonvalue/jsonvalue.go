@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strconv"
 
 	"github.com/Jh123x/prompiler/internal/domain"
 	"github.com/Jh123x/prompiler/internal/eval"
@@ -19,7 +21,7 @@ type jsonNode struct {
 	obj  map[string]*jsonNode
 	arr  []*jsonNode
 	str  string
-	num  float64
+	num  string // raw number text, parsed per target type to avoid float64 precision loss
 	bl   bool
 }
 
@@ -80,8 +82,7 @@ func parseValue(dec *json.Decoder) (*jsonNode, error) {
 		case string:
 			return &jsonNode{kind: 's', str: v}, nil
 		case json.Number:
-			f, _ := v.Float64()
-			return &jsonNode{kind: 'n', num: f}, nil
+			return &jsonNode{kind: 'n', num: v.String()}, nil
 		case bool:
 			return &jsonNode{kind: 'b', bl: v}, nil
 		case nil:
@@ -138,12 +139,20 @@ func coerce(t types.Type, n *jsonNode, env *types.Env) (eval.Value, error) {
 			if n.kind != 'n' {
 				return eval.Value{}, fmt.Errorf("expected int")
 			}
-			return eval.IntVal(int64(n.num)), nil
+			i, err := strconv.ParseInt(n.num, 10, 64)
+			if err != nil {
+				return eval.Value{}, fmt.Errorf("%q is not a valid int", n.num)
+			}
+			return eval.IntVal(i), nil
 		case types.TypeFloat:
 			if n.kind != 'n' {
 				return eval.Value{}, fmt.Errorf("expected float")
 			}
-			return eval.FloatVal(n.num), nil
+			f, err := strconv.ParseFloat(n.num, 64)
+			if err != nil {
+				return eval.Value{}, fmt.Errorf("%q is not a valid float", n.num)
+			}
+			return eval.FloatVal(f), nil
 		case types.TypeBool:
 			if n.kind != 'b' {
 				return eval.Value{}, fmt.Errorf("expected bool")
@@ -153,6 +162,9 @@ func coerce(t types.Type, n *jsonNode, env *types.Env) (eval.Value, error) {
 	case *types.Enum:
 		if n.kind != 's' {
 			return eval.Value{}, fmt.Errorf("expected enum member")
+		}
+		if !slices.Contains(tt.Members, n.str) {
+			return eval.Value{}, fmt.Errorf("%q is not a member of %s", n.str, tt.Name)
 		}
 		return eval.EnumVal(tt.Name, n.str), nil
 	case *types.Array:

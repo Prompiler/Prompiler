@@ -190,7 +190,11 @@ func (l *Lexer) scanNumber(start token.Position) token.Token {
 		t.FloatVal = f
 		return t
 	}
-	n, _ := strconv.ParseInt(l.src[start.Offset:l.pos], 10, 64)
+	n, err := strconv.ParseInt(l.src[start.Offset:l.pos], 10, 64)
+	if err != nil {
+		// Out-of-range literal: flag it rather than silently clamping.
+		return token.Token{Type: token.ILLEGAL, Lexeme: l.src[start.Offset:l.pos], Span: l.spanFrom(start)}
+	}
 	t := token.Token{Type: token.INT, Lexeme: l.src[start.Offset:l.pos], Span: l.spanFrom(start)}
 	t.IntVal = n
 	return t
@@ -350,6 +354,13 @@ func (l *Lexer) tryCapturePromptBody() bool {
 	bodyStart := l.start()
 	raw := l.captureRawPromptBody()
 	bodyTok := token.Token{Type: token.PROMPT_BODY, Lexeme: raw, Span: l.spanFrom(bodyStart)}
+
+	if l.eof() {
+		// Unterminated prompt body (no closing brace): emit what we have; the
+		// parser reports the missing brace.
+		l.pending = append(l.pending, lbraceTok, bodyTok)
+		return true
+	}
 
 	rbraceStart := l.start()
 	l.advance() // consume closing '}'

@@ -3,6 +3,7 @@ package eval
 import (
 	"fmt"
 	"strconv"
+	"unicode/utf8"
 
 	"github.com/Jh123x/prompiler/internal/ast"
 	"github.com/Jh123x/prompiler/internal/token"
@@ -14,9 +15,6 @@ type Evaluator struct {
 	sem     *types.SemanticModel
 	funcs   map[string]*ast.FuncDecl
 	classes map[string]*ast.ClassDecl
-
-	thisVal Value
-	hasThis bool
 }
 
 // NewEvaluator wires the evaluator to the parsed files and semantic model (DI).
@@ -107,7 +105,9 @@ func (e *Evaluator) EvalExpr(expr ast.Expr, env *evalEnv) (Value, *RuntimeError)
 			if err != nil {
 				return Value{}, err
 			}
-			keys = append(keys, kv.str)
+			if _, exists := vals[kv.str]; !exists {
+				keys = append(keys, kv.str)
+			}
 			vals[kv.str] = vv
 		}
 		var vt types.Type
@@ -127,9 +127,6 @@ func (e *Evaluator) EvalExpr(expr ast.Expr, env *evalEnv) (Value, *RuntimeError)
 		}
 		return ObjectVal(t, fields), nil
 	case *ast.Ident:
-		if x.Name == "this" {
-			return e.thisVal, nil
-		}
 		if v, ok := env.lookup(x.Name); ok {
 			return v, nil
 		}
@@ -166,7 +163,7 @@ func (e *Evaluator) evalFieldAccess(x *ast.FieldAccess, env *evalEnv) (Value, *R
 	if x.Field == "length" {
 		switch {
 		case recv.isString():
-			return IntVal(int64(len(recv.str))), nil
+			return IntVal(int64(utf8.RuneCountInString(recv.str))), nil
 		case recv.arr != nil:
 			return IntVal(int64(len(*recv.arr))), nil
 		case recv.m != nil:
@@ -269,13 +266,10 @@ func (e *Evaluator) evalMethodCall(x *ast.MethodCall, env *evalEnv) (Value, *Run
 func (e *Evaluator) callUserMethod(m *ast.MethodDecl, recv Value, args []Value) (Value, *RuntimeError) {
 	env := newEvalEnv(nil)
 	env.define("this", recv)
-	e.thisVal = recv
-	e.hasThis = true
 	for i, p := range m.Params {
 		env.define(p.Name, args[i])
 	}
 	ret, _, err := e.EvalStmts(m.Body, env)
-	e.hasThis = false
 	return ret, err
 }
 

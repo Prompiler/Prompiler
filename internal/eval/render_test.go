@@ -276,3 +276,92 @@ func TestStringMethods(t *testing.T) {
 		assert.Equal(t, "HELLO\nHello\nJello\n", out)
 	})
 }
+
+func TestNestedMethodThis(t *testing.T) {
+	t.Run("restores this after a nested method call", func(t *testing.T) {
+		src := `class Inner {
+  x: int
+  func get(): int { return this.x }
+}
+class Outer {
+  inner: Inner
+  tag: string
+  func combined(): string {
+    var v = this.inner.get()
+    return this.tag + string(v)
+  }
+}
+template T {
+  variables {
+    o: Outer
+  }
+  prompt {
+{{ o.combined() }}
+  }
+}`
+		inner := eval.ObjectVal(&types.Class{Name: "Inner"}, map[string]eval.Value{"x": eval.IntVal(5)})
+		outer := eval.ObjectVal(&types.Class{Name: "Outer"}, map[string]eval.Value{"inner": inner, "tag": eval.StringVal("T")})
+		out, err := renderSrc(t, map[string]string{"t.ppl": src}, "T", eval.InputValues{"o": outer})
+		require.NoError(t, err)
+		assert.Equal(t, "T5\n", out)
+	})
+}
+
+func TestMapDuplicateKeys(t *testing.T) {
+	t.Run("deduplicates a repeated literal key", func(t *testing.T) {
+		src := `template T {
+  prompt {
+{{ {"a": 1, "a": 2}.length }}
+  }
+}`
+		out, err := renderSrc(t, map[string]string{"t.ppl": src}, "T", nil)
+		require.NoError(t, err)
+		assert.Equal(t, "1\n", out)
+	})
+}
+
+func TestStringLengthRunes(t *testing.T) {
+	t.Run("counts runes, not bytes", func(t *testing.T) {
+		src := `template T {
+  variables {
+    name: string
+  }
+  prompt {
+{{ name.length }}
+  }
+}`
+		out, err := renderSrc(t, map[string]string{"t.ppl": src}, "T", eval.InputValues{"name": eval.StringVal("héllo")})
+		require.NoError(t, err)
+		assert.Equal(t, "5\n", out)
+	})
+}
+
+func TestAnchoringColumn(t *testing.T) {
+	t.Run("anchors a second inline interpolation at its own column", func(t *testing.T) {
+		src := `template T {
+  variables {
+    a: string
+    b: string
+  }
+  prompt {
+X{{ a }}{{ b }}Y
+  }
+}`
+		out, err := renderSrc(t, map[string]string{"t.ppl": src}, "T", eval.InputValues{
+			"a": eval.StringVal("1\n2"),
+			"b": eval.StringVal("p\nq"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "X1\n 2p\n  qY\n", out)
+	})
+}
+
+func TestRangeStepOverflow(t *testing.T) {
+	t.Run("reports overflow instead of looping", func(t *testing.T) {
+		src := `template T { prompt { {% for i in range_step(1, 9223372036854775807, 9223372036854775807) %}{{ i }}{% end %} } }`
+		_, err := renderSrc(t, map[string]string{"t.ppl": src}, "T", nil)
+		var rerr *eval.RuntimeError
+		require.ErrorAs(t, err, &rerr)
+		require.Equal(t, token.CatOverflow, rerr.Category)
+	})
+}

@@ -34,12 +34,22 @@ func (e *Evaluator) callBuiltinFunc(name string, args []Value, span token.Span) 
 		}
 		var elems []Value
 		if step > 0 {
-			for i := start; i < stop; i += step {
+			for i := start; i < stop; {
 				elems = append(elems, IntVal(i))
+				next := i + step
+				if next < i {
+					return Value{}, rterr(token.CatOverflow, span, "range_step overflow")
+				}
+				i = next
 			}
 		} else {
-			for i := start; i > stop; i += step {
+			for i := start; i > stop; {
 				elems = append(elems, IntVal(i))
+				next := i + step
+				if next > i {
+					return Value{}, rterr(token.CatOverflow, span, "range_step overflow")
+				}
+				i = next
 			}
 		}
 		return ArrayVal(types.TypeInt, elems), nil

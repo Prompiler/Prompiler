@@ -113,3 +113,59 @@ func TestTypecheckErrorFixtures(t *testing.T) {
 		})
 	}
 }
+
+func TestGenericWrongArity(t *testing.T) {
+	t.Run("reports wrong arity instead of panicking", func(t *testing.T) {
+		src := `func id<T>(x: T): T { return x }
+template T { variables { n: int } prompt { {{ id(n, 2) }} } }`
+		diags := typecheckFiles(t, map[string]string{"t.ppl": src})
+		require.NotEmpty(t, diags)
+	})
+}
+
+func TestIncludeValidation(t *testing.T) {
+	t.Run("rejects an unknown template", func(t *testing.T) {
+		src := `template T { variables { a: string } prompt { {{ include Missing(a: a) }} } }`
+		diags := typecheckFiles(t, map[string]string{"t.ppl": src})
+		require.NotEmpty(t, diags)
+	})
+
+	t.Run("rejects a missing required child variable", func(t *testing.T) {
+		files := map[string]string{
+			"main.ppl": `import "child.ppl"
+template Main { variables { c: string } prompt { {{ include Child(x: c) }} } }`,
+			"child.ppl": `template Child {
+  variables {
+    x: string
+    y: string
+  }
+  prompt { {{ x }} {{ y }} }
+}`,
+		}
+		diags := typecheckFiles(t, files)
+		require.NotEmpty(t, diags)
+	})
+}
+
+func TestLengthOnPrimitive(t *testing.T) {
+	t.Run("rejects .length on a non-string primitive", func(t *testing.T) {
+		src := `template T { variables { n: int } prompt { {{ n.length }} } }`
+		diags := typecheckFiles(t, map[string]string{"t.ppl": src})
+		require.NotEmpty(t, diags)
+	})
+}
+
+func TestFieldAssignment(t *testing.T) {
+	t.Run("rejects field mutation", func(t *testing.T) {
+		src := `class Point {
+  x: int
+  func bump(): int {
+    this.x = this.x + 1
+    return this.x
+  }
+}
+template T { variables { p: Point } prompt { {{ p.bump() }} } }`
+		diags := typecheckFiles(t, map[string]string{"t.ppl": src})
+		require.NotEmpty(t, diags)
+	})
+}
