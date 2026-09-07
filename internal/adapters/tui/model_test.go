@@ -348,6 +348,25 @@ func TestModelScalarValidation(t *testing.T) {
 	require.Empty(t, mustField(t, m.form, "n").text)
 }
 
+func TestModelStdoutDefersOutput(t *testing.T) {
+	m := modelForSource(t, map[string]string{
+		"s.ppl": "template Simple {\n  variables { name: string }\n  prompt { Hello {{ name }} }\n}\n",
+	})
+	tap(m, keyEnterMsg) // open Simple
+	require.Equal(t, stageForm, m.stage)
+
+	tap(m, keyEnterMsg) // edit name
+	tap(m, keyText("Ada"))
+	tap(m, keyEnterMsg)
+	tap(m, keyRune('r')) // run -> output
+	tap(m, keyEnterMsg)  // outSel 0 -> stdout
+
+	require.Equal(t, stageResult, m.stage)
+	require.True(t, m.resultOK)
+	require.NotEmpty(t, m.rendered)
+	require.Equal(t, m.rendered, m.stdoutOutput)
+}
+
 func TestModelDivisionByZeroReturnsToForm(t *testing.T) {
 	m := modelForSource(t, map[string]string{"dbz.ppl": divZeroSource})
 

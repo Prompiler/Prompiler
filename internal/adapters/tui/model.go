@@ -114,10 +114,11 @@ type Model struct {
 	filePathVal string
 
 	// result
-	rendered   string
-	targetDesc string
-	resultErr  error
-	resultOK   bool
+	rendered     string
+	targetDesc   string
+	resultErr    error
+	resultOK     bool
+	stdoutOutput string // prompt to print to stdout once the TUI exits
 }
 
 // newModel builds a fresh model rooted at root (defaulting to ".").
@@ -771,7 +772,10 @@ func (m *Model) deliverCurrent() {
 	var target string
 	switch m.outKind {
 	case outStdout:
-		sink = output.StdoutSink{}
+		// Buffer the output for display and print it on exit; writing directly
+		// to os.Stdout here would corrupt the alternate screen.
+		sink = &output.BufferSink{}
+		m.stdoutOutput = out
 		target = "stdout"
 	case outFile:
 		sink = output.NewFileSink(m.filePathVal)

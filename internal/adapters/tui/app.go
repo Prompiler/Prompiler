@@ -2,6 +2,8 @@
 package tui
 
 import (
+	"fmt"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/Jh123x/prompiler/internal/domain"
@@ -22,8 +24,13 @@ func NewApp(app *domain.Application) *App {
 func (a *App) Run(root string) error {
 	m := newModel(a.app, root)
 	p := tea.NewProgram(m, tea.WithAltScreen())
-	if _, err := p.Run(); err != nil {
+	final, err := p.Run()
+	if err != nil {
 		return err
+	}
+	// Print any pending stdout output after the alternate screen is restored.
+	if fm, ok := final.(*Model); ok && fm.stdoutOutput != "" {
+		fmt.Print(fm.stdoutOutput)
 	}
 	return nil
 }
