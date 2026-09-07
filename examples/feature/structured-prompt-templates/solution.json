@@ -1,0 +1,5 @@
+{
+  "template": "BaseStructuredPrompt",
+  "expected_prompt": "<Role>Senior software engineer</Role>\n<Task>\nReview the pull request for correctness and security\n</Task>\n<Note>\nFocus on the authentication module\n</Note>\n",
+  "expected_errors": []
+}
