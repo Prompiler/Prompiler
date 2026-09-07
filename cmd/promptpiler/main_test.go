@@ -126,6 +126,32 @@ func TestDispatch(t *testing.T) {
 		assert.Empty(t, stderr.String())
 	})
 
+	t.Run("run with -variables reads the given JSON file", func(t *testing.T) {
+		dir := writeFixture(t, map[string]string{
+			"Greet.ppl":      greetSource,
+			"variables.json": `{"name": "Ada"}`,
+			"input.json":     `{"name": "Grace"}`,
+		})
+		var stdout, stderr bytes.Buffer
+
+		code := dispatch([]string{"run", "-root", dir, "-variables", filepath.Join(dir, "input.json"), "Greet"}, &stdout, &stderr, nil)
+
+		assert.Equal(t, 0, code)
+		assert.Equal(t, "Hello, Grace\n", stdout.String())
+		assert.Empty(t, stderr.String())
+	})
+
+	t.Run("run with a missing -variables file fails", func(t *testing.T) {
+		dir := writeFixture(t, map[string]string{"Greet.ppl": greetSource})
+		var stdout, stderr bytes.Buffer
+
+		code := dispatch([]string{"run", "-root", dir, "-variables", filepath.Join(dir, "missing.json"), "Greet"}, &stdout, &stderr, nil)
+
+		assert.Equal(t, 1, code)
+		assert.Empty(t, stdout.String())
+		assert.Contains(t, stderr.String(), "missing.json")
+	})
+
 	t.Run("run without a template name prints usage and exits 2", func(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 

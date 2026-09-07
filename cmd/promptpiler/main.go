@@ -77,6 +77,7 @@ func dispatch(args []string, stdout, stderr io.Writer, startTUI func(root string
 	case "run":
 		fs := newFlagSet("run", stderr)
 		root := fs.String("root", ".", "root directory to scan")
+		variables := fs.String("variables", "", "path to a JSON file of input values (defaults to <root>/variables.json)")
 		if code := parse(fs, args[1:], stderr); code != 0 {
 			return code
 		}
@@ -90,7 +91,7 @@ func dispatch(args []string, stdout, stderr io.Writer, startTUI func(root string
 			fmt.Fprintf(stderr, "init: %v\n", err)
 			return 1
 		}
-		if err := run(stdout, app, *root, name); err != nil {
+		if err := run(stdout, app, *root, name, *variables); err != nil {
 			return fail(stderr, err)
 		}
 		return 0
@@ -125,14 +126,18 @@ func startTUI(root string) error {
 	return app.Run(root)
 }
 
-func run(stdout io.Writer, app *domain.Application, root, name string) error {
+func run(stdout io.Writer, app *domain.Application, root, name, variables string) error {
 	prog, diags := app.AnalyzeRoot(root)
 	if len(diags) > 0 {
 		return fmt.Errorf("%s: %s: %s", diags[0].Stage, diags[0].Category, diags[0].Message)
 	}
-	varData, err := os.ReadFile(filepath.Join(root, "variables.json"))
+	varsPath := variables
+	if varsPath == "" {
+		varsPath = filepath.Join(root, "variables.json")
+	}
+	varData, err := os.ReadFile(varsPath)
 	if err != nil {
-		return fmt.Errorf("read variables.json: %w", err)
+		return fmt.Errorf("read variables from %q: %w", varsPath, err)
 	}
 	vs, err := jsonvalue.New(varData, prog.Sem.Env)
 	if err != nil {
@@ -156,7 +161,7 @@ func run(stdout io.Writer, app *domain.Application, root, name string) error {
 }
 
 func usage(stderr io.Writer) {
-	fmt.Fprintln(stderr, "usage: promptpiler [<list|check|run <template>> [-root <dir>]]")
+	fmt.Fprintln(stderr, "usage: promptpiler [<list|check|run <template>> [-root <dir>] [-variables <path>]]")
 }
 
 // fail reports an application error to stderr and returns exit code 1.
