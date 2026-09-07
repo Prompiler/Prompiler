@@ -81,6 +81,8 @@ var (
 	keyEscMsg   = tea.KeyMsg{Type: tea.KeyEsc}
 	keyUpMsg    = tea.KeyMsg{Type: tea.KeyUp}
 	keyDownMsg  = tea.KeyMsg{Type: tea.KeyDown}
+	keyLeftMsg  = tea.KeyMsg{Type: tea.KeyLeft}
+	keyRightMsg = tea.KeyMsg{Type: tea.KeyRight}
 )
 
 func tap(m *Model, msg tea.Msg) { m.Update(msg) }
@@ -306,6 +308,26 @@ func TestModelMapEntryKeyThenValue(t *testing.T) {
 	tap(m, keyText("Go"))
 	tap(m, keyEnterMsg)
 	require.Equal(t, "Go", tags.entries[0].value.text)
+}
+
+func TestModelBackFromForm(t *testing.T) {
+	m := modelForSource(t, map[string]string{"demo.ppl": modelSource})
+	tap(m, keyEnterMsg) // open Demo
+	require.Equal(t, stageForm, m.stage)
+
+	// Drill into the Person class; left arrow backs up within the form.
+	tap(m, keyDownMsg) // count
+	tap(m, keyDownMsg) // person
+	tap(m, keyEnterMsg)
+	require.NotNil(t, m.view.container)
+
+	tap(m, keyLeftMsg)
+	require.Equal(t, stageForm, m.stage)
+	require.Nil(t, m.view.container) // back at the root
+
+	// Left arrow at the form root returns to the browse stage.
+	tap(m, keyLeftMsg)
+	require.Equal(t, stageBrowse, m.stage)
 }
 
 func TestModelDivisionByZeroReturnsToForm(t *testing.T) {

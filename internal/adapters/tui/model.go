@@ -348,7 +348,11 @@ func (m *Model) backOut() {
 	}
 	if m.view != nil && m.view.parent != nil {
 		m.view = m.view.parent
+		return
 	}
+	// At the form root: return to the browse stage.
+	m.stage = stageBrowse
+	m.view = nil
 }
 
 func (m *Model) enterRow() {
