@@ -1,0 +1,5 @@
+{
+  "template": "CodingAgent",
+  "expected_prompt": "<Role>Senior software engineer</Role>\n<Task>\nReview the pull request for correctness and security\n</Task>\n<Note>\n1. Use subagents as much as possible to preserve what you have on context.\n2. Use subagent driven development.\n3. Make use of test driven development and the examples that are provided. Do not modify the examples.\n4. If you run into any issues / spec issues, please surface it to me.\nultracode\nPay special attention to authentication and authorization.\n</Note>\n",
+  "expected_errors": []
+}

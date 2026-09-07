@@ -1,0 +1,16 @@
+import "base-structured-prompt.ppl"
+
+template CodingAgent {
+  description: "A coding-agent prompt built on the base structured prompt, appending an extra note into the note section"
+
+  variables {
+    Role: string
+    Task: string
+    Notes: string = "1. Use subagents as much as possible to preserve what you have on context.\n2. Use subagent driven development.\n3. Make use of test driven development and the examples that are provided. Do not modify the examples.\n4. If you run into any issues / spec issues, please surface it to me.\nultracode"
+    extra_note: string
+  }
+
+  prompt {
+    {{ include BaseStructuredPrompt(Role: Role, Task: Task, Notes: Notes + "\n" + extra_note) }}
+  }
+}
