@@ -118,3 +118,54 @@ func Stringify(v Value) (string, bool) {
 	}
 	return "", false
 }
+
+// AsArray exposes the elements of an array value, in order. The returned slice
+// is a copy, so mutating it cannot alias the value's internal storage.
+func (v Value) AsArray() ([]Value, bool) {
+	if v.arr == nil {
+		return nil, false
+	}
+	out := make([]Value, len(*v.arr))
+	copy(out, *v.arr)
+	return out, true
+}
+
+// AsMap exposes a map value's keys (in insertion order) and its values. Both
+// are copied so callers cannot mutate the value's internal storage.
+func (v Value) AsMap() ([]string, map[string]Value, bool) {
+	if v.m == nil {
+		return nil, nil, false
+	}
+	keys := append([]string(nil), v.m.keys...)
+	vals := make(map[string]Value, len(v.m.vals))
+	for k, val := range v.m.vals {
+		vals[k] = val
+	}
+	return keys, vals, true
+}
+
+// AsObject exposes a class value's concrete type and field map. The returned
+// map is a copy so callers cannot mutate the value's internal storage.
+func (v Value) AsObject() (*types.Class, map[string]Value, bool) {
+	if v.obj == nil {
+		return nil, nil, false
+	}
+	cls, ok := v.typ.(*types.Class)
+	if !ok {
+		return nil, nil, false
+	}
+	fields := make(map[string]Value, len(v.obj.fields))
+	for k, val := range v.obj.fields {
+		fields[k] = val
+	}
+	return cls, fields, true
+}
+
+// AsOptional reports whether v is an Optional and, when it is, its presence and
+// its payload (the payload is the zero Value when absent).
+func (v Value) AsOptional() (present bool, value Value, ok bool) {
+	if v.opt == nil {
+		return false, Value{}, false
+	}
+	return v.opt.present, v.opt.value, true
+}
