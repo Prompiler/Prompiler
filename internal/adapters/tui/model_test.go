@@ -183,6 +183,35 @@ func TestModelFlowEndToEnd(t *testing.T) {
 	assert.Equal(t, m.rendered, string(data))
 }
 
+func TestModelAddToEmptyCollection(t *testing.T) {
+	m := modelForSource(t, map[string]string{"demo.ppl": modelSource})
+	tap(m, keyEnterMsg) // open Demo
+	require.Equal(t, stageForm, m.stage)
+
+	// Descend into the empty scores array via Enter, then add inside it.
+	tap(m, keyDownMsg) // 1 count
+	tap(m, keyDownMsg) // 2 person
+	tap(m, keyDownMsg) // 3 scores
+	tap(m, keyEnterMsg)
+	require.Equal(t, "scores", m.view.container.label)
+	require.Empty(t, m.view.rows)
+
+	tap(m, keyRune('a')) // regression: adding inside an empty array used to be a no-op
+	require.Len(t, m.view.rows, 1)
+	require.Len(t, mustField(t, m.form, "scores").elems, 1)
+
+	// Same for the empty map.
+	tap(m, keyEscMsg)  // back to the root list
+	tap(m, keyDownMsg) // idx4 tags
+	tap(m, keyEnterMsg)
+	require.Equal(t, "tags", m.view.container.label)
+	require.Empty(t, m.view.rows)
+
+	tap(m, keyRune('a'))
+	require.Len(t, m.view.rows, 1)
+	require.Len(t, mustField(t, m.form, "tags").entries, 1)
+}
+
 func TestModelDivisionByZeroReturnsToForm(t *testing.T) {
 	m := modelForSource(t, map[string]string{"dbz.ppl": divZeroSource})
 

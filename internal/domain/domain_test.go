@@ -57,3 +57,16 @@ func TestDiscoverTemplatesMarksSyntaxErrors(t *testing.T) {
 	require.Equal(t, "broken.ppl", got[0].Path)
 	require.NotEmpty(t, got[0].Diagnostics)
 }
+
+func TestDiscoverTemplatesMarksTypeErrors(t *testing.T) {
+	app := domain.NewApplication(&source.MemSource{Files: map[string]string{
+		"err/broken.ppl": "enum Color { Red, Green, Red }\ntemplate Broken { variables { x: int } prompt { {{ x }} } }\n",
+	}}, builtin.NewRegistry())
+
+	got, err := app.DiscoverTemplates(".")
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, "err/broken.ppl", got[0].Path)
+	require.Equal(t, "Broken", got[0].Name)
+	require.NotEmpty(t, got[0].Diagnostics)
+}

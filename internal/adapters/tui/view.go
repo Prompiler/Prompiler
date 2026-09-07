@@ -30,9 +30,9 @@ func (m *Model) viewBrowse() string {
 	b.WriteString(titleStyle.Render("Prompiler — interactive run") + "\n")
 	b.WriteString(hintStyle.Render("root: "+m.rootPath) + "\n\n")
 	if m.browseDetail != "" {
-		b.WriteString(errStyle.Render("Syntax error:") + "\n")
+		b.WriteString(errStyle.Render("Error in "+m.templates[m.browseSel].Path+":") + "\n")
 		b.WriteString(errStyle.Render(m.browseDetail) + "\n")
-		b.WriteString(hintStyle.Render("\nesc back") + "\n")
+		b.WriteString(hintStyle.Render("\n[esc/b] back · [q] quit") + "\n")
 		return b.String()
 	}
 	if m.browseErr != "" {

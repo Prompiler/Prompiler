@@ -6,6 +6,7 @@ package domain
 
 import (
 	"fmt"
+	"path"
 	"sort"
 
 	"github.com/Jh123x/prompiler/internal/ast"
@@ -141,34 +142,58 @@ func (a *Application) ListTemplates(root string) ([]TemplateInfo, error) {
 	return out, nil
 }
 
-// DiscoverTemplates parses every module under root and lists the templates it
-// finds, without type-checking. It tolerates roots that mix independent (or
-// individually broken) programs — e.g. the examples tree — which a whole-root
-// analysis would reject with cross-file duplicates. Used by the TUI to present
-// a selectable list before any single program is chosen.
+// DiscoverTemplates lists every template reachable from root, analyzing each
+// containing directory as an independent program so a broken directory does not
+// hide or poison the others. Templates whose directory fails to analyze (syntax
+// or type error) are still listed, with Diagnostics populated so the TUI can
+// flag them as errors.
 func (a *Application) DiscoverTemplates(root string) ([]TemplateInfo, error) {
 	paths, err := a.Source.ListModules(root)
 	if err != nil {
 		return nil, err
 	}
-	var out []TemplateInfo
+	byDir := map[string][]string{}
 	for _, p := range paths {
-		data, err := a.Source.Read(root, p)
-		if err != nil {
-			return nil, err
+		d := path.Dir(p)
+		byDir[d] = append(byDir[d], p)
+	}
+	var out []TemplateInfo
+	for _, files := range byDir {
+		sort.Strings(files)
+		src := SourceSet{}
+		for _, p := range files {
+			data, err := a.Source.Read(root, p)
+			if err != nil {
+				return nil, err
+			}
+			src[p] = string(data)
 		}
-		file, diags := parseModule(string(data))
-		decls := templateDecls(file)
-		if len(decls) == 0 {
-			if len(diags) > 0 {
-				// No recoverable template and the file failed to parse: surface
-				// the file itself as a syntax-error entry.
-				out = append(out, TemplateInfo{Path: p, Diagnostics: diags})
+		prog, diags := Analyze("", src, a.Builtins)
+		if len(diags) == 0 {
+			for filePath, f := range prog.Files {
+				for _, d := range f.Decls {
+					if td, ok := d.(*ast.TemplateDecl); ok {
+						out = append(out, TemplateInfo{Path: filePath, Name: td.Name, Description: td.Description})
+					}
+				}
 			}
 			continue
 		}
-		for _, td := range decls {
-			out = append(out, TemplateInfo{Path: p, Name: td.Name, Description: td.Description, Diagnostics: diags})
+		// Directory has errors: recover its templates via parse-only and attach
+		// the diagnostics so the TUI can flag them.
+		for _, p := range files {
+			data, _ := a.Source.Read(root, p)
+			file, pdiags := parseModule(string(data))
+			decls := templateDecls(file)
+			if len(decls) == 0 {
+				if len(pdiags) > 0 {
+					out = append(out, TemplateInfo{Path: p, Diagnostics: diags})
+				}
+				continue
+			}
+			for _, td := range decls {
+				out = append(out, TemplateInfo{Path: p, Name: td.Name, Description: td.Description, Diagnostics: diags})
+			}
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {

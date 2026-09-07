@@ -176,8 +176,18 @@ func (m *Model) reloadBrowse() {
 
 func (m *Model) updateBrowse(key tea.KeyMsg) tea.Cmd {
 	if m.browseDetail != "" {
-		if key.Type == tea.KeyEsc {
+		switch key.Type {
+		case tea.KeyEsc:
 			m.browseDetail = ""
+		case tea.KeyRunes:
+			if len(key.Runes) == 1 {
+				switch key.Runes[0] {
+				case 'b':
+					m.browseDetail = ""
+				case 'q':
+					return tea.Quit
+				}
+			}
 		}
 		return nil
 	}
@@ -440,13 +450,9 @@ func (m *Model) cycleSelectedEnum(d int) {
 }
 
 func (m *Model) addRow() {
-	r := m.currentRow()
-	if r == nil {
-		return
-	}
 	var target *FormField
 	inside := false
-	if r.entry == nil && r.field != nil {
+	if r := m.currentRow(); r != nil && r.entry == nil && r.field != nil {
 		switch r.field.typ.(type) {
 		case *types.Array, *types.Map:
 			target = r.field
