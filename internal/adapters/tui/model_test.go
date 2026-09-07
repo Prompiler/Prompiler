@@ -281,6 +281,33 @@ func TestModelOptionalEdit(t *testing.T) {
 	require.Equal(t, editNone, m.editKind)
 }
 
+func TestModelMapEntryKeyThenValue(t *testing.T) {
+	m := modelForSource(t, map[string]string{"demo.ppl": modelSource})
+	tap(m, keyEnterMsg) // open Demo
+	require.Equal(t, stageForm, m.stage)
+
+	// Navigate to tags (row 4) and add an entry.
+	tap(m, keyDownMsg) // 1 count
+	tap(m, keyDownMsg) // 2 person
+	tap(m, keyDownMsg) // 3 scores
+	tap(m, keyDownMsg) // 4 tags
+	tap(m, keyRune('a'))
+	tags := mustField(t, m.form, "tags")
+	require.Len(t, tags.entries, 1)
+
+	// Entering a new entry prompts for the key, then chains into the value.
+	tap(m, keyEnterMsg)
+	require.Equal(t, editKey, m.editKind)
+	tap(m, keyText("lang"))
+	tap(m, keyEnterMsg) // commit key -> prompt value
+	require.Equal(t, "lang", tags.entries[0].key)
+	require.Equal(t, editText, m.editKind)
+
+	tap(m, keyText("Go"))
+	tap(m, keyEnterMsg)
+	require.Equal(t, "Go", tags.entries[0].value.text)
+}
+
 func TestModelDivisionByZeroReturnsToForm(t *testing.T) {
 	m := modelForSource(t, map[string]string{"dbz.ppl": divZeroSource})
 

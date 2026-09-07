@@ -103,6 +103,7 @@ type Model struct {
 	editField    *FormField
 	editEntry    *mapEntry
 	editOptional *FormField // set when editing an optional's scalar child
+	chainValue   *FormField // map value to edit after its key is committed
 
 	// output
 	outKind     outKind
@@ -378,8 +379,14 @@ func (m *Model) enterRow() {
 		return
 	}
 	if r.entry != nil {
-		// enter edits the entry value (a compound drills deeper)
-		m.enterField(r.entry.value)
+		// A new entry prompts for the key first, then its value; an existing
+		// entry edits the value directly (press 'k' to change its key).
+		if r.entry.key == "" {
+			m.beginKeyEdit(r.entry)
+			m.chainValue = r.entry.value
+		} else {
+			m.enterField(r.entry.value)
+		}
 		return
 	}
 	m.enterField(r.field)
@@ -562,6 +569,7 @@ func (m *Model) beginTextEdit(f *FormField) {
 	m.editField = f
 	m.editEntry = nil
 	m.editOptional = nil
+	m.chainValue = nil
 	m.ti.SetValue(f.text)
 	m.ti.CursorEnd()
 	m.ti.Focus()
@@ -571,6 +579,8 @@ func (m *Model) beginKeyEdit(e *mapEntry) {
 	m.editKind = editKey
 	m.editField = nil
 	m.editEntry = e
+	m.editOptional = nil
+	m.chainValue = nil
 	m.ti.SetValue(e.key)
 	m.ti.CursorEnd()
 	m.ti.Focus()
@@ -582,12 +592,17 @@ func (m *Model) commitEdit() {
 		if m.editField != nil {
 			m.editField.text = m.ti.Value()
 		}
+		m.endEdit()
 	case editKey:
 		if m.editEntry != nil {
 			m.editEntry.key = m.ti.Value()
 		}
+		chain := m.chainValue
+		m.endEdit()
+		if chain != nil {
+			m.enterField(chain)
+		}
 	}
-	m.endEdit()
 }
 
 func (m *Model) endEdit() {
@@ -595,6 +610,7 @@ func (m *Model) endEdit() {
 	m.editField = nil
 	m.editEntry = nil
 	m.editOptional = nil
+	m.chainValue = nil
 	m.ti.Blur()
 }
 

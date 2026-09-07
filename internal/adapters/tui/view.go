@@ -99,7 +99,7 @@ func (m *Model) viewForm() string {
 		}
 		b.WriteString("\n" + rowStyle.Render("editing "+target+": "+m.ti.Value()+"█") + "\n")
 	} else {
-		b.WriteString(hintStyle.Render("\n↑/↓ move · → select · ← back · a add · d remove · r run · q quit") + "\n")
+		b.WriteString(hintStyle.Render("\n↑/↓ move · → select · ← back · a add · d remove · k key · r run · q quit") + "\n")
 	}
 	return b.String()
 }
