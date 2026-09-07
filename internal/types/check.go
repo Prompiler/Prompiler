@@ -33,6 +33,35 @@ type TypeChecker struct {
 	thisType   Type
 	returnType Type
 	inMethod   bool
+
+	typeParams      map[string]*TypeVar
+	savedTypeParams []map[string]*TypeVar
+}
+
+// pushTypeParams extends the current type-parameter scope with params (for a
+// generic class/interface/function/method), resolving bounds after registration.
+func (tc *TypeChecker) pushTypeParams(params []ast.TypeParam, out *[]*TypeVar) {
+	newScope := map[string]*TypeVar{}
+	for k, v := range tc.typeParams {
+		newScope[k] = v
+	}
+	tc.savedTypeParams = append(tc.savedTypeParams, tc.typeParams)
+	tc.typeParams = newScope
+	for _, tp := range params {
+		tv := &TypeVar{Name: tp.Name}
+		tc.typeParams[tp.Name] = tv
+		*out = append(*out, tv)
+	}
+	for i, tp := range params {
+		if tp.Bound != nil {
+			(*out)[i].Bound = tc.resolveTypeRef(tp.Bound)
+		}
+	}
+}
+
+func (tc *TypeChecker) popTypeParams() {
+	tc.typeParams = tc.savedTypeParams[len(tc.savedTypeParams)-1]
+	tc.savedTypeParams = tc.savedTypeParams[:len(tc.savedTypeParams)-1]
 }
 
 // NewChecker returns a checker wired to the injected builtin surface (DI).
@@ -79,6 +108,7 @@ func (tc *TypeChecker) collectTypes(files map[string]*ast.File) {
 			switch decl := d.(type) {
 			case *ast.ClassDecl:
 				c := tc.env.Types[decl.Name].(*Class)
+				tc.pushTypeParams(decl.TypeParams, &c.TypeParams)
 				for _, f := range decl.Fields {
 					ft := tc.resolveTypeRef(f.Type)
 					c.Fields = append(c.Fields, FieldInfo{Name: f.Name, Type: ft})
@@ -86,15 +116,18 @@ func (tc *TypeChecker) collectTypes(files map[string]*ast.File) {
 				for i := range decl.Methods {
 					c.Methods = append(c.Methods, tc.resolveMethodSig(&decl.Methods[i]))
 				}
+				tc.popTypeParams()
 				tc.checkRecursiveFields(c, decl)
 			case *ast.InterfaceDecl:
 				i := tc.env.Types[decl.Name].(*Interface)
+				tc.pushTypeParams(decl.TypeParams, &i.TypeParams)
 				for _, f := range decl.Fields {
 					i.Fields = append(i.Fields, FieldInfo{Name: f.Name, Type: tc.resolveTypeRef(f.Type)})
 				}
 				for j := range decl.Methods {
 					i.Methods = append(i.Methods, tc.resolveMethodSig(&decl.Methods[j]))
 				}
+				tc.popTypeParams()
 			}
 		}
 	}
@@ -110,10 +143,12 @@ func (tc *TypeChecker) checkRecursiveFields(c *Class, decl *ast.ClassDecl) {
 
 func (tc *TypeChecker) resolveMethodSig(m *ast.MethodDecl) *MethodSig {
 	sig := &MethodSig{Name: m.Name}
+	tc.pushTypeParams(m.TypeParams, &sig.TypeParams)
 	for _, p := range m.Params {
 		sig.Params = append(sig.Params, tc.resolveTypeRef(p.Type))
 	}
 	sig.Return = tc.resolveTypeRef(m.Return)
+	tc.popTypeParams()
 	return sig
 }
 
@@ -125,10 +160,12 @@ func (tc *TypeChecker) collectFuncs(files map[string]*ast.File) {
 				continue
 			}
 			sig := &FuncSig{Name: fn.Name}
+			tc.pushTypeParams(fn.TypeParams, &sig.TypeParams)
 			for _, p := range fn.Params {
 				sig.Params = append(sig.Params, tc.resolveTypeRef(p.Type))
 			}
 			sig.Return = tc.resolveTypeRef(fn.Return)
+			tc.popTypeParams()
 			tc.env.Funcs[fn.Name] = sig
 		}
 	}
@@ -147,7 +184,13 @@ func (tc *TypeChecker) resolveTypeRef(tr ast.TypeRef) Type {
 		case "bool":
 			return TypeBool
 		}
+		if tv, ok := tc.typeParams[t.Name]; ok {
+			return tv
+		}
 		if typ, ok := tc.env.Types[t.Name]; ok {
+			if len(t.TypeArgs) > 0 {
+				return tc.instantiate(typ, t.TypeArgs, tr.Span())
+			}
 			return typ
 		}
 		tc.err(token.CatUnknownType, tr.Span(), fmt.Sprintf("unknown type %q", t.Name))
@@ -172,8 +215,9 @@ func (tc *TypeChecker) checkDecls(files map[string]*ast.File) {
 				tc.checkEnum(decl)
 			case *ast.ClassDecl:
 				tc.checkClassMembers(decl)
+				cls := tc.env.Types[decl.Name].(*Class)
 				for i := range decl.Methods {
-					tc.checkMethod(&decl.Methods[i], tc.env.Types[decl.Name])
+					tc.checkMethod(&decl.Methods[i], cls.Methods[i], cls)
 				}
 			case *ast.InterfaceDecl:
 				tc.checkInterfaceMembers(decl)
@@ -229,13 +273,13 @@ func (tc *TypeChecker) checkInterfaceMembers(i *ast.InterfaceDecl) {
 	}
 }
 
-func (tc *TypeChecker) checkMethod(m *ast.MethodDecl, classType Type) {
+func (tc *TypeChecker) checkMethod(m *ast.MethodDecl, sig *MethodSig, classType Type) {
 	tc.thisType = classType
 	tc.inMethod = true
-	tc.returnType = tc.resolveTypeRef(m.Return)
+	tc.returnType = sig.Return
 	sc := newTypeScope(nil)
-	for _, p := range m.Params {
-		sc.define(p.Name, tc.resolveTypeRef(p.Type))
+	for i, p := range m.Params {
+		sc.define(p.Name, sig.Params[i])
 	}
 	tc.checkStmts(m.Body, sc)
 	tc.inMethod = false
@@ -247,8 +291,8 @@ func (tc *TypeChecker) checkFunc(fn *ast.FuncDecl) {
 	tc.returnType = sig.Return
 	tc.inMethod = false
 	sc := newTypeScope(nil)
-	for _, p := range fn.Params {
-		sc.define(p.Name, tc.resolveTypeRef(p.Type))
+	for i, p := range fn.Params {
+		sc.define(p.Name, sig.Params[i])
 	}
 	tc.checkStmts(fn.Body, sc)
 	tc.returnType = nil
@@ -625,9 +669,58 @@ func (tc *TypeChecker) checkCall(x *ast.Call, sc *typeScope) Type {
 		tc.err(token.CatUnknownName, x.Span(), fmt.Sprintf("unknown function %q", id.Name))
 		return invalidT
 	}
+	if len(sig.TypeParams) > 0 {
+		ret, inst := tc.checkGenericCallArgs(x.TypeArgs, x.Args, sig.TypeParams, sig.Params, sig.Return, x.Span(), sc)
+		if inst != nil {
+			tc.sm.Calls[x] = inst
+		}
+		return ret
+	}
 	tc.checkArgs(x.Args, sig, x.Span(), sc)
 	tc.sm.Calls[x] = sig
 	return sig.Return
+}
+
+// checkGenericCallArgs resolves or infers type arguments for a generic
+// function/method, checks bounds, substitutes, and checks the arguments.
+func (tc *TypeChecker) checkGenericCallArgs(typeArgs []ast.TypeRef, args []ast.Expr, typeParams []*TypeVar, params []Type, ret Type, span token.Span, sc *typeScope) (Type, *FuncSig) {
+	argTypes := make([]Type, len(args))
+	for i, a := range args {
+		argTypes[i] = tc.checkExpr(a, sc)
+	}
+	subst := typeSubst{}
+	if len(typeArgs) > 0 {
+		if len(typeArgs) != len(typeParams) {
+			tc.err(token.CatTypeMismatch, span, fmt.Sprintf("expected %d type arguments, got %d", len(typeParams), len(typeArgs)))
+			return invalidT, nil
+		}
+		for i, a := range typeArgs {
+			resolved := tc.resolveTypeRef(a)
+			if typeParams[i].Bound != nil && !Assignable(resolved, typeParams[i].Bound) {
+				tc.err(token.CatInterfaceUnsatisfied, span, fmt.Sprintf("%s does not satisfy bound %s", resolved, typeParams[i].Bound))
+			}
+			subst[typeParams[i].Name] = resolved
+		}
+	} else {
+		for i, pt := range params {
+			if !unify(pt, argTypes[i], subst) {
+				tc.err(token.CatTypeMismatch, span, "cannot infer type arguments")
+				return invalidT, nil
+			}
+		}
+		for _, tp := range typeParams {
+			if tp.Bound != nil {
+				if concrete, ok := subst[tp.Name]; ok && !Assignable(concrete, tp.Bound) {
+					tc.err(token.CatInterfaceUnsatisfied, span, fmt.Sprintf("%s does not satisfy bound %s", concrete, tp.Bound))
+				}
+			}
+		}
+	}
+	inst := &FuncSig{Params: substituteTypes(params, subst), Return: substitute(ret, subst)}
+	for i, a := range args {
+		tc.requireAssignable(argTypes[i], inst.Params[i], a.Span())
+	}
+	return inst.Return, inst
 }
 
 func (tc *TypeChecker) checkMethodCall(x *ast.MethodCall, sc *typeScope) Type {
@@ -658,6 +751,10 @@ func (tc *TypeChecker) checkMethodCall(x *ast.MethodCall, sc *typeScope) Type {
 			tc.err(token.CatUnknownMethod, x.Span(), fmt.Sprintf("no method %q on %s", x.Method, recv))
 			return invalidT
 		}
+	}
+	if len(sig.TypeParams) > 0 {
+		ret, _ := tc.checkGenericCallArgs(x.TypeArgs, x.Args, sig.TypeParams, sig.Params, sig.Return, x.Span(), sc)
+		return ret
 	}
 	tc.checkArgs(x.Args, &FuncSig{Name: sig.Name, Params: sig.Params, Return: sig.Return}, x.Span(), sc)
 	return sig.Return

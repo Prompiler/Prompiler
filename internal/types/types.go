@@ -92,10 +92,25 @@ func (p Primitive) String() string {
 	}
 	return "?"
 }
-func (a *Array) String() string    { return a.Elem.String() + "[]" }
-func (m *Map) String() string      { return "map<string, " + m.Value.String() + ">" }
-func (o *Optional) String() string { return "Optional<" + o.Elem.String() + ">" }
-func (e *Enum) String() string     { return e.Name }
+func (a *Array) String() string {
+	if a.Elem == nil {
+		return "?[]"
+	}
+	return a.Elem.String() + "[]"
+}
+func (m *Map) String() string {
+	if m.Value == nil {
+		return "map<string, ?>"
+	}
+	return "map<string, " + m.Value.String() + ">"
+}
+func (o *Optional) String() string {
+	if o.Elem == nil {
+		return "Optional<?>"
+	}
+	return "Optional<" + o.Elem.String() + ">"
+}
+func (e *Enum) String() string { return e.Name }
 func (c *Class) String() string {
 	if len(c.TypeArgs) == 0 {
 		return c.Name

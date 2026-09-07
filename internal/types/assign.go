@@ -93,6 +93,12 @@ func Assignable(s, t Type) bool {
 	if Equal(s, t) {
 		return true
 	}
+	// A bare `none` (Optional with nil element) is assignable to any Optional.
+	if so, ok := s.(*Optional); ok && so.Elem == nil {
+		if _, ok := t.(*Optional); ok {
+			return true
+		}
+	}
 	if iface, ok := t.(*Interface); ok {
 		if c, ok := s.(*Class); ok {
 			_, ok := Satisfies(c, iface)
