@@ -57,8 +57,8 @@ declaration := import
 
 ### 2.1 Project root and imports
 
-- A `promptpiler.toml` file marks a repository root. The root is the **first**
-  `promptpiler.toml` found by walking up from the current working directory.
+- A `prompiler.toml` file marks a repository root. The root is the **first**
+  `prompiler.toml` found by walking up from the current working directory.
 - Imports are **whole-file** and use **relative paths** resolved against the
   importing file:
 
@@ -230,7 +230,7 @@ strings:
 
 | Type | Methods |
 |---|---|
-| `string` | `length`, `upper()`, `lower()`, `trim()`, `replace(old, new)` |
+| `string` | `length`, `upper()`, `lower()`, `trim()`, `replace(old, new, count)`, `replace_all(old, new)` |
 | `T[]` (array) | `length` |
 | `map<string, T>` | `keys()`, `values()`, `length` |
 
@@ -260,8 +260,12 @@ builtin function and `none` is a literal; `is_empty()`/`value()` are method call
 - **No `null`** and no `T?` nullable marker. `Optional<T>` (§4.7) expresses
   absence; it is not `null`.
 - **No union types** (`A | B`). Alternatives are modeled with interfaces + classes.
-- **No user generics** — `array<T>`, `map<string,T>`, and `Optional<T>` are the only
-  type constructors.
+- **User generics** — `class`, `interface`, free `func`, and methods may declare
+  type parameters in `<...>` with optional structural bounds (`T: SomeInterface`).
+  Type arguments are written explicitly in type annotations (`Pair<string,int>`)
+  and may be explicit (`head<string>(x)`) or inferred (`head(x)`) at use sites.
+  Type parameters are invariant; recursion through collections/`Optional` is
+  allowed; bounds grant method/field access (not operators).
 - **No `any` / `unknown` / `never`.**
 - **No integer width distinctions** — `int` is signed 64-bit; `float` is IEEE-754
   64-bit.
@@ -786,7 +790,7 @@ touching the core.
 
 ## 15. Go package layout
 
-Module: `github.com/Jh123x/promptpiler`.
+Module: `github.com/Jh123x/prompiler`.
 
 ```
 cmd/promptpiler           # CLI/TUI entrypoint

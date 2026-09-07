@@ -13,6 +13,6 @@ template StringMethods {
     Upper: {{ name.upper() }}
     Lower: {{ name.lower() }}
     Trim: {{ padded.trim() }}
-    Replace: {{ name.replace("H", "J") }}
+    Replace: {{ name.replace_all("H", "J") }}
   }
 }

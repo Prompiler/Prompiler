@@ -1,0 +1,5 @@
+{
+  "Role": "Senior software engineer",
+  "Task": "Review the pull request for correctness and security",
+  "extra_note": "Pay special attention to authentication and authorization."
+}

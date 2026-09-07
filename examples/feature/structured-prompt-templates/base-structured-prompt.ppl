@@ -1,0 +1,19 @@
+template BaseStructuredPrompt {
+  description: "Renders a structured XML prompt from role, task, and notes"
+
+  variables {
+    Role: string
+    Task: string
+    Notes: string
+  }
+
+  prompt {
+    <Role>{{ Role }}</Role>
+    <Task>
+    {{ Task }}
+    </Task>
+    <Note>
+    {{ Notes }}
+    </Note>
+  }
+}

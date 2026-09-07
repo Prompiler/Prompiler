@@ -8,6 +8,15 @@ Tracks the features and decisions Prompiler still needs, kept separate from the 
 
 Ambiguities in `spec.md` that an implementation must resolve. Each is a *decision*, with a proposed resolution and the spec section it belongs to.
 
+> **Status:** these decisions were resolved with the author and folded into the
+> compiler and `spec.md` (see also `docs/grammar.md`). Notable resolutions: the
+> product is **Prompiler** (module `github.com/Jh123x/prompiler`, binary
+> `prompiler`, root marker `prompiler.toml`); `replace` is now
+> `replace(old,new,count)` + `replace_all(old,new)`; user **generics** (§4.8) are
+> implemented; `var x = x + 1` reads the outer binding; included templates emit
+> their trailing newline (the include consumes its own line's newline); map
+> `keys()`/`values()` ordering is left unspecified (insertion order in practice).
+
 | # | Decision | Proposed resolution | Spec § |
 |---|---|---|---|
 | 1 | Whitespace/newline model | Line-oriented rendering: dedent, then classify each body line as pure-control-tag (emits nothing, drops its newline), own-line include (splice at column, consume newline), or inline-content (replace in place, keep newline). | §8.4 |
