@@ -18,17 +18,10 @@ jobs:
         with:
           go-version: "1.27"
           cache-dependency-path: go.sum
-      - name: gofmt check
-        run: |
-          if [ -n "$(gofmt -l .)" ]; then
-            echo "gofmt required on:" >&2
-            gofmt -l . >&2
-            exit 1
-          fi
-      - name: go vet
-        run: go vet ./...
-      - name: go test (unit)
-        run: go test ./... -short
+      - name: lint (gofmt + vet)
+        run: make lint
+      - name: unit tests
+        run: make unit
 
   integration:
     name: Integration (fixture conformance)
@@ -39,8 +32,8 @@ jobs:
         with:
           go-version: "1.27"
           cache-dependency-path: go.sum
-      - name: go test (conformance)
-        run: go test ./internal/conformance/ -v
+      - name: conformance harness
+        run: make integration
 
   e2e:
     name: End-to-end (CLI)
@@ -51,7 +44,5 @@ jobs:
         with:
           go-version: "1.27"
           cache-dependency-path: go.sum
-      - name: build
-        run: go build -o bin/prompiler ./cmd/promptpiler
       - name: e2e smoke tests
-        run: bash ./scripts/e2e.sh ./bin/prompiler
+        run: make e2e
