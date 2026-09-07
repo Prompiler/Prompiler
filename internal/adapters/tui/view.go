@@ -29,6 +29,12 @@ func (m *Model) viewBrowse() string {
 	var b strings.Builder
 	b.WriteString(titleStyle.Render("Prompiler — interactive run") + "\n")
 	b.WriteString(hintStyle.Render("root: "+m.rootPath) + "\n\n")
+	if m.browseDetail != "" {
+		b.WriteString(errStyle.Render("Syntax error:") + "\n")
+		b.WriteString(errStyle.Render(m.browseDetail) + "\n")
+		b.WriteString(hintStyle.Render("\nesc back") + "\n")
+		return b.String()
+	}
 	if m.browseErr != "" {
 		b.WriteString(errStyle.Render(m.browseErr) + "\n")
 		return b.String()
@@ -44,7 +50,13 @@ func (m *Model) viewBrowse() string {
 			marker = "> "
 			style = selStyle
 		}
+		if len(t.Diagnostics) > 0 {
+			style = errRowStyle
+		}
 		line := t.Path + " — " + t.Name
+		if t.Name == "" {
+			line = t.Path + " — (syntax error)"
+		}
 		if t.Description != "" {
 			line += " — " + t.Description
 		}

@@ -24,4 +24,7 @@ var (
 
 	// okStyle renders success messages.
 	okStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("76"))
+
+	// errRowStyle renders a browse row whose source file has a syntax error.
+	errRowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 )

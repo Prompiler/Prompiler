@@ -271,16 +271,56 @@ func TestModelQuit(t *testing.T) {
 }
 
 func TestModelBrowseInvalidSourceStaysInBrowse(t *testing.T) {
-	// An unclosed template body is a parse error: the application cannot even
-	// enumerate templates, so the model stays on the browse stage and reports it.
+	// An unclosed template body is a parse error: discovery lists the file as a
+	// syntax-error entry (not skipped), and the model stays on the browse stage.
 	src := `
 template Broken {
   prompt {hello
 `
 	app := domain.NewApplication(&source.MemSource{Files: map[string]string{"b.ppl": src}}, builtin.NewRegistry())
 	m := newModel(app, ".")
-	require.NotEmpty(t, m.browseErr, "an invalid template must surface as a browse error")
-	require.Empty(t, m.templates)
+	require.Len(t, m.templates, 1)
+	require.NotEmpty(t, m.templates[0].Diagnostics)
+	require.Empty(t, m.browseErr)
 	require.Equal(t, stageBrowse, m.stage)
 	assert.NotEmpty(t, m.View())
+}
+
+func TestModelBrowseSyntaxErrorDetail(t *testing.T) {
+	// Selecting a syntax-error entry shows the full error; esc returns to the list.
+	src := `
+template Broken {
+  prompt {hello
+`
+	app := domain.NewApplication(&source.MemSource{Files: map[string]string{"b.ppl": src}}, builtin.NewRegistry())
+	m := newModel(app, ".")
+
+	tap(m, keyEnterMsg)
+	require.NotEmpty(t, m.browseDetail)
+	require.Equal(t, stageBrowse, m.stage)
+
+	tap(m, keyEscMsg)
+	require.Empty(t, m.browseDetail)
+	require.Equal(t, stageBrowse, m.stage)
+}
+
+func TestModelBrowseSelectsPerDirectory(t *testing.T) {
+	// Two independent directories each declare a class "P"; whole-root analysis
+	// would reject the duplicate, but the TUI discovers both templates and
+	// analyzes only the selected template's own directory.
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "a"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "b"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a", "one.ppl"), []byte("class P { x: string }\ntemplate One { variables { x: string } prompt { {{ x }} } }\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b", "two.ppl"), []byte("class P { y: string }\ntemplate Two { variables { y: string } prompt { {{ y }} } }\n"), 0o644))
+
+	app := domain.NewApplication(&source.FSSource{}, builtin.NewRegistry())
+	m := newModel(app, dir)
+
+	require.Len(t, m.templates, 2)
+	require.Empty(t, m.browseErr)
+
+	tap(m, keyEnterMsg) // open the first template (in a/)
+	require.Equal(t, stageForm, m.stage)
+	require.Equal(t, "One", m.templateName)
 }

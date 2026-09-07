@@ -5,6 +5,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -80,12 +81,13 @@ type Model struct {
 	stage stage
 
 	// browse
-	rootPath  string
-	templates []domain.TemplateInfo
-	browseSel int
-	browseErr string
-	pathEdit  bool
-	pathInput textinput.Model
+	rootPath     string
+	templates    []domain.TemplateInfo
+	browseSel    int
+	browseErr    string
+	browseDetail string
+	pathEdit     bool
+	pathInput    textinput.Model
 
 	// form
 	templateName string
@@ -163,7 +165,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *Model) reloadBrowse() {
 	m.browseSel = 0
 	m.browseErr = ""
-	templates, err := m.app.ListTemplates(m.rootPath)
+	templates, err := m.app.DiscoverTemplates(m.rootPath)
 	if err != nil {
 		m.templates = nil
 		m.browseErr = err.Error()
@@ -173,6 +175,12 @@ func (m *Model) reloadBrowse() {
 }
 
 func (m *Model) updateBrowse(key tea.KeyMsg) tea.Cmd {
+	if m.browseDetail != "" {
+		if key.Type == tea.KeyEsc {
+			m.browseDetail = ""
+		}
+		return nil
+	}
 	if m.pathEdit {
 		switch key.Type {
 		case tea.KeyEnter:
@@ -194,7 +202,12 @@ func (m *Model) updateBrowse(key tea.KeyMsg) tea.Cmd {
 	switch {
 	case key.Type == tea.KeyEnter:
 		if len(m.templates) > 0 {
-			m.openTemplate(m.templates[m.browseSel].Name)
+			ti := m.templates[m.browseSel]
+			if len(ti.Diagnostics) > 0 {
+				m.browseDetail = formatDiags(ti.Diagnostics)
+			} else {
+				m.openTemplate(ti)
+			}
 		}
 	case key.Type == tea.KeyUp:
 		if m.browseSel > 0 {
@@ -218,8 +231,9 @@ func (m *Model) updateBrowse(key tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
-func (m *Model) openTemplate(name string) {
-	prog, diags := m.app.AnalyzeRoot(m.rootPath)
+func (m *Model) openTemplate(ti domain.TemplateInfo) {
+	root := filepath.Join(m.rootPath, filepath.Dir(ti.Path))
+	prog, diags := m.app.AnalyzeRoot(root)
 	if len(diags) > 0 {
 		m.browseErr = formatDiags(diags)
 		return
@@ -227,19 +241,19 @@ func (m *Model) openTemplate(name string) {
 	var td *ast.TemplateDecl
 	for _, f := range prog.Files {
 		for _, d := range f.Decls {
-			if t, ok := d.(*ast.TemplateDecl); ok && t.Name == name {
+			if t, ok := d.(*ast.TemplateDecl); ok && t.Name == ti.Name {
 				td = t
 			}
 		}
 	}
 	if td == nil {
-		m.browseErr = fmt.Sprintf("template %q not found", name)
+		m.browseErr = fmt.Sprintf("template %q not found", ti.Name)
 		return
 	}
 	m.prog = prog
-	m.templateName = name
-	m.form = BuildForm(td, prog.Sem.TemplateVars[name], prog.Sem.Env)
-	m.view = rootView(m.form, name)
+	m.templateName = ti.Name
+	m.form = BuildForm(td, prog.Sem.TemplateVars[ti.Name], prog.Sem.Env)
+	m.view = rootView(m.form, ti.Name)
 	m.formErr = ""
 	m.stage = stageForm
 }
@@ -797,7 +811,11 @@ func formatDiags(diags []token.Diagnostic) string {
 		if sb.Len() > 0 {
 			sb.WriteString("\n")
 		}
-		fmt.Fprintf(&sb, "%s (%s): %s", d.Category, d.Stage, d.Message)
+		if d.Span.Start.Line > 0 {
+			fmt.Fprintf(&sb, "%d:%d: %s (%s): %s", d.Span.Start.Line, d.Span.Start.Column, d.Category, d.Stage, d.Message)
+		} else {
+			fmt.Fprintf(&sb, "%s (%s): %s", d.Category, d.Stage, d.Message)
+		}
 	}
 	return sb.String()
 }
