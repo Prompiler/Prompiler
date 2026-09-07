@@ -16,6 +16,10 @@ type SemanticModel struct {
 	Env   *Env
 	Types map[ast.Expr]Type
 	Calls map[*ast.Call]*FuncSig
+
+	// TemplateVars maps each template to its variables' types (used by the
+	// renderer to evaluate enum-member and `none` defaults).
+	TemplateVars map[string]map[string]Type
 }
 
 // TypeChecker performs full static analysis over resolved files.
@@ -40,7 +44,7 @@ func NewChecker(b Builtins) *TypeChecker {
 func (tc *TypeChecker) Check(files map[string]*ast.File, syms *resolver.SymbolTable) (*SemanticModel, []token.Diagnostic) {
 	tc.syms = syms
 	tc.env = &Env{Types: map[string]Type{}, Funcs: map[string]*FuncSig{}, Methods: tc.builtins}
-	tc.sm = &SemanticModel{Env: tc.env, Types: map[ast.Expr]Type{}, Calls: map[*ast.Call]*FuncSig{}}
+	tc.sm = &SemanticModel{Env: tc.env, Types: map[ast.Expr]Type{}, Calls: map[*ast.Call]*FuncSig{}, TemplateVars: map[string]map[string]Type{}}
 
 	tc.collectTypes(files)
 	tc.collectFuncs(files)
@@ -252,14 +256,17 @@ func (tc *TypeChecker) checkFunc(fn *ast.FuncDecl) {
 
 func (tc *TypeChecker) checkTemplate(t *ast.TemplateDecl) {
 	sc := newTypeScope(nil)
+	varTypes := map[string]Type{}
 	for i := range t.Variables {
 		v := &t.Variables[i]
 		vt := tc.resolveTypeRef(v.Type)
+		varTypes[v.Name] = vt
 		sc.define(v.Name, vt)
 		if v.HasDefault {
 			tc.checkDefault(v, vt)
 		}
 	}
+	tc.sm.TemplateVars[t.Name] = varTypes
 	if t.Prompt != nil {
 		tc.checkPromptSegments(t.Prompt.Segments, sc)
 	}

@@ -755,12 +755,53 @@ func (p *Parser) parseMapEntry() ast.MapEntry {
 // --- prompt body ---
 
 func (p *Parser) parsePromptBody(raw string, span token.Span) *ast.PromptBody {
-	sc := &promptScanner{p: p, src: raw}
+	sc := &promptScanner{p: p, src: dedent(raw)}
 	segs, stop := sc.parseBody()
 	if stop != "" {
 		p.error(fmt.Sprintf("unexpected closing tag %q in prompt body", stop), token.Token{Span: span})
 	}
 	return &ast.PromptBody{Base: ast.Base{S: span}, Raw: raw, Segments: segs}
+}
+
+// dedent strips the common leading whitespace over non-blank lines (so the
+// least-indented line sits at column 0) and trims leading/trailing blank lines.
+func dedent(raw string) string {
+	lines := strings.Split(raw, "\n")
+	minIndent := -1
+	for _, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		n := 0
+		for n < len(l) && (l[n] == ' ' || l[n] == '\t') {
+			n++
+		}
+		if minIndent == -1 || n < minIndent {
+			minIndent = n
+		}
+	}
+	if minIndent > 0 {
+		for i, l := range lines {
+			if strings.TrimSpace(l) == "" {
+				continue
+			}
+			if len(l) >= minIndent {
+				lines[i] = l[minIndent:]
+			}
+		}
+	}
+	start := 0
+	for start < len(lines) && strings.TrimSpace(lines[start]) == "" {
+		start++
+	}
+	end := len(lines)
+	for end > start && strings.TrimSpace(lines[end-1]) == "" {
+		end--
+	}
+	if end <= start {
+		return ""
+	}
+	return strings.Join(lines[start:end], "\n") + "\n"
 }
 
 // parseExprText lexes a substring as an expression and parses it, merging any
@@ -824,6 +865,7 @@ func (s *promptScanner) parseBody() ([]ast.PromptSegment, string) {
 				s.p.error("unterminated control tag in prompt body", token.Token{})
 				return segs, ""
 			}
+			s.skipNewline() // control tags occupy their own line; drop its newline
 			tag := strings.TrimSpace(inner)
 			switch {
 			case tag == "end" || tag == "else":
@@ -844,6 +886,12 @@ func (s *promptScanner) parseBody() ([]ast.PromptSegment, string) {
 	return segs, ""
 }
 
+func (s *promptScanner) skipNewline() {
+	if !s.eof() && s.src[s.pos] == '\n' {
+		s.pos++
+	}
+}
+
 func (s *promptScanner) readUntil(delim string) (string, bool) {
 	if i := strings.Index(s.src[s.pos:], delim); i >= 0 {
 		inner := s.src[s.pos : s.pos+i]
@@ -858,7 +906,9 @@ func (s *promptScanner) readUntil(delim string) (string, bool) {
 func (s *promptScanner) parseInterp(inner string) ast.PromptSegment {
 	inner = strings.TrimSpace(inner)
 	if strings.HasPrefix(inner, "include") && (len(inner) == len("include") || inner[len("include")] == ' ' || inner[len("include")] == '\t') {
-		return s.parseInclude(strings.TrimSpace(inner[len("include"):]))
+		seg := s.parseInclude(strings.TrimSpace(inner[len("include"):]))
+		s.skipNewline() // an own-line include consumes its newline (child emits it)
+		return seg
 	}
 	expr := s.p.parseExprText(inner)
 	return &ast.InterpSegment{Expr: expr}
