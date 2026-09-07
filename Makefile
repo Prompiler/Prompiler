@@ -1,5 +1,6 @@
 BINARY := prompiler
 GO     ?= go
+ROOT   ?= .
 
 .PHONY: help build install clean fmt vet lint gen run \
         unit integration e2e test ci
