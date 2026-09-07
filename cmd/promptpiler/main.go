@@ -22,10 +22,9 @@ func main() {
 		fmt.Fprintln(os.Stderr, "init:", err)
 		os.Exit(1)
 	}
-	root := "."
 	switch os.Args[1] {
 	case "list":
-		templates, err := app.ListTemplates(root)
+		templates, err := app.ListTemplates(arg(2))
 		if err != nil {
 			fatal(err)
 		}
@@ -33,7 +32,7 @@ func main() {
 			fmt.Println(t.Name)
 		}
 	case "check":
-		diags, err := app.CheckTemplates(root)
+		diags, err := app.CheckTemplates(arg(2))
 		if err != nil {
 			fatal(err)
 		}
@@ -48,13 +47,21 @@ func main() {
 			usage()
 			os.Exit(2)
 		}
-		if err := run(app, root, os.Args[2]); err != nil {
+		if err := run(app, arg(3), os.Args[2]); err != nil {
 			fatal(err)
 		}
 	default:
 		usage()
 		os.Exit(2)
 	}
+}
+
+// arg returns the positional argument at index i, or "." for the root.
+func arg(i int) string {
+	if i < len(os.Args) {
+		return os.Args[i]
+	}
+	return "."
 }
 
 func run(app *domain.Application, root, name string) error {

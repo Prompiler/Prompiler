@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    name: Unit tests & lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+          cache-dependency-path: go.sum
+      - name: gofmt check
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "gofmt required on:" >&2
+            gofmt -l . >&2
+            exit 1
+          fi
+      - name: go vet
+        run: go vet ./...
+      - name: go test (unit)
+        run: go test ./... -short
+
+  integration:
+    name: Integration (fixture conformance)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+          cache-dependency-path: go.sum
+      - name: go test (conformance)
+        run: go test ./internal/conformance/ -v
+
+  e2e:
+    name: End-to-end (CLI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+          cache-dependency-path: go.sum
+      - name: build
+        run: go build -o bin/prompiler ./cmd/promptpiler
+      - name: e2e smoke tests
+        run: bash ./scripts/e2e.sh ./bin/prompiler

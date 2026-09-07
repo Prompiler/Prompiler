@@ -30,6 +30,9 @@ type solution struct {
 }
 
 func TestConformance(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test (fixture conformance) skipped in -short mode")
+	}
 	dirs := map[string][]string{}
 	err := filepath.Walk("../../examples", func(path string, info os.FileInfo, err error) error {
 		if err != nil {
