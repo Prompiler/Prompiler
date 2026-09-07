@@ -4,13 +4,13 @@
 package conformance_test
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
+	"github.com/bytedance/sonic"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -51,7 +51,7 @@ func TestConformance(t *testing.T) {
 			continue
 		}
 		var sol solution
-		require.NoError(t, json.Unmarshal(solData, &sol))
+		require.NoError(t, sonic.Unmarshal(solData, &sol))
 
 		t.Run(filepath.Base(dir), func(t *testing.T) {
 			src := domain.SourceSet{}

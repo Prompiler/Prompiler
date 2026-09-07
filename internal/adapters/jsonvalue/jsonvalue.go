@@ -3,11 +3,12 @@
 package jsonvalue
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"slices"
 	"strconv"
+
+	"github.com/bytedance/sonic"
+	"github.com/bytedance/sonic/ast"
 
 	"github.com/Jh123x/prompiler/internal/domain"
 	"github.com/Jh123x/prompiler/internal/eval"
@@ -58,72 +59,78 @@ func (s *Source) Provide(vars []domain.Variable) (eval.InputValues, error) {
 }
 
 // parseJSON parses data into an order-preserving jsonNode.
+//
+// sonic has no streaming Token()/Delim API, so a strict full-document decode
+// (sonic.Unmarshal) validates the input and rejects malformed JSON and trailing
+// content, then the sonic ast tree is walked to rebuild the order-preserving
+// jsonNode. The ast preserves object key order and raw number text.
 func parseJSON(data []byte) (*jsonNode, error) {
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.UseNumber()
-	n, err := parseValue(dec)
-	if err != nil {
+	var anyVal any
+	if err := sonic.Unmarshal(data, &anyVal); err != nil {
 		return nil, err
 	}
-	if dec.More() {
-		return nil, fmt.Errorf("unexpected trailing JSON")
+	parser := ast.NewParser(string(data))
+	n, perr := parser.Parse()
+	if perr != 0 {
+		return nil, parser.ExportError(perr)
 	}
-	return n, nil
+	return buildNode(&n)
 }
 
-func parseValue(dec *json.Decoder) (*jsonNode, error) {
-	tok, err := dec.Token()
-	if err != nil {
-		return nil, err
-	}
-	delim, isDelim := tok.(json.Delim)
-	if !isDelim {
-		switch v := tok.(type) {
-		case string:
-			return &jsonNode{kind: 's', str: v}, nil
-		case json.Number:
-			return &jsonNode{kind: 'n', num: v.String()}, nil
-		case bool:
-			return &jsonNode{kind: 'b', bl: v}, nil
-		case nil:
-			return &jsonNode{kind: 'z'}, nil
-		}
-		return nil, fmt.Errorf("unexpected JSON token %v", tok)
-	}
-	switch delim {
-	case '{':
+// buildNode walks a sonic ast.Node into the order-preserving jsonNode.
+func buildNode(n *ast.Node) (*jsonNode, error) {
+	switch n.TypeSafe() {
+	case ast.V_OBJECT:
 		node := &jsonNode{kind: 'o', obj: map[string]*jsonNode{}}
-		for dec.More() {
-			keyTok, err := dec.Token()
-			if err != nil {
-				return nil, err
-			}
-			key, ok := keyTok.(string)
-			if !ok {
-				return nil, fmt.Errorf("object key is not a string")
-			}
-			val, err := parseValue(dec)
-			if err != nil {
-				return nil, err
-			}
-			node.keys = append(node.keys, key)
-			node.obj[key] = val
+		props, err := n.Properties()
+		if err != nil {
+			return nil, err
 		}
-		dec.Token() // consume '}'
+		var pair ast.Pair
+		for props.Next(&pair) {
+			child, err := buildNode(&pair.Value)
+			if err != nil {
+				return nil, err
+			}
+			node.keys = append(node.keys, pair.Key)
+			node.obj[pair.Key] = child
+		}
 		return node, nil
-	case '[':
+	case ast.V_ARRAY:
 		node := &jsonNode{kind: 'a'}
-		for dec.More() {
-			val, err := parseValue(dec)
+		vals, err := n.Values()
+		if err != nil {
+			return nil, err
+		}
+		var child ast.Node
+		for vals.Next(&child) {
+			sub, err := buildNode(&child)
 			if err != nil {
 				return nil, err
 			}
-			node.arr = append(node.arr, val)
+			node.arr = append(node.arr, sub)
 		}
-		dec.Token() // consume ']'
 		return node, nil
+	case ast.V_STRING:
+		s, err := n.String()
+		if err != nil {
+			return nil, err
+		}
+		return &jsonNode{kind: 's', str: s}, nil
+	case ast.V_NUMBER:
+		num, err := n.Number()
+		if err != nil {
+			return nil, err
+		}
+		return &jsonNode{kind: 'n', num: num.String()}, nil
+	case ast.V_TRUE:
+		return &jsonNode{kind: 'b', bl: true}, nil
+	case ast.V_FALSE:
+		return &jsonNode{kind: 'b', bl: false}, nil
+	case ast.V_NULL:
+		return &jsonNode{kind: 'z'}, nil
 	}
-	return nil, fmt.Errorf("unexpected delimiter %v", delim)
+	return nil, fmt.Errorf("unsupported JSON node type %d", n.TypeSafe())
 }
 
 func coerce(t types.Type, n *jsonNode, env *types.Env) (eval.Value, error) {

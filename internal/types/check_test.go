@@ -1,13 +1,13 @@
 package types_test
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
 
+	"github.com/bytedance/sonic"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -89,7 +89,7 @@ func TestTypecheckErrorFixtures(t *testing.T) {
 		t.Run(d.Name(), func(t *testing.T) {
 			dir := filepath.Join("../../examples/errors", d.Name())
 			var sol solution
-			require.NoError(t, json.Unmarshal([]byte(readFile(t, filepath.Join(dir, "solution.json"))), &sol))
+			require.NoError(t, sonic.Unmarshal([]byte(readFile(t, filepath.Join(dir, "solution.json"))), &sol))
 
 			var want []string
 			for _, e := range sol.ExpectedErrors {
