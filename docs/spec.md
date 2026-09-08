@@ -57,8 +57,10 @@ declaration := import
 
 ### 2.1 Project root and imports
 
-- A `prompiler.toml` file marks a repository root. The root is the **first**
-  `prompiler.toml` found by walking up from the current working directory.
+- Root-marker discovery is **NOT YET IMPLEMENTED**: the spec's `prompiler.toml`
+  marker file (found by walking up from the current working directory) does not
+  exist in the code yet. Today the project root is simply the `-root` flag
+  passed to the CLI (default `"."`); there is no config-file root marker.
 - Imports are **whole-file** and use **relative paths** resolved against the
   importing file:
 
@@ -674,7 +676,7 @@ split across distinct names.
 
 ## 11. Type checking rules
 
-Type checking happens entirely at compile time (`promptpiler check` / LSP
+Type checking happens entirely at compile time (`prompiler check` / LSP
 diagnostics). The checker produces **positioned diagnostics** for:
 
 - unknown type references
@@ -741,6 +743,9 @@ that the LSP can report **all** errors in a file at once.
 
 ## 13. LSP (v1)
 
+> **Not yet implemented:** there is currently no LSP server binary and no `lsp`
+> subcommand. This section describes the *planned* surface.
+
 The compiler core is reused by the LSP server. v1 features:
 
 - **Diagnostics** — syntax errors + type errors, with spans.
@@ -755,11 +760,15 @@ Deferred: rename, find-references, workspace symbol search.
 Commands:
 
 ```
-promptpiler list                   # enumerate templates
-promptpiler check                  # type-check all templates; exit non-zero on error
-promptpiler run <template>         # TUI: collect inputs -> render -> emit
-promptpiler lsp                    # run the language server
+prompiler list                   # enumerate templates
+prompiler check                  # type-check all templates; exit non-zero on error
+prompiler run <template>         # render <template>; the rendered prompt is written to stdout
 ```
+
+`list`, `check`, and `run` all take `-root <dir>` (default `"."`). `run` also
+takes `-variables <path>` (default `"<root>/variables.json"`). Running with **no
+subcommand** starts the interactive TUI. There is no `lsp` subcommand and no
+`--output` flag; `run` always writes to stdout.
 
 ### 14.1 Input collection (TUI)
 
@@ -794,7 +803,6 @@ Module: `github.com/Jh123x/prompiler`.
 
 ```
 cmd/promptpiler           # CLI/TUI entrypoint
-cmd/promptpiler-lsp       # LSP server entrypoint (or `promptpiler lsp`)
 internal/token            # token type + source spans
 internal/lexer            # lexer
 internal/ast              # AST node definitions
@@ -803,11 +811,18 @@ internal/resolver         # imports + symbol table
 internal/types            # type system + type checker
 internal/builtin          # builtin classes + standard library
 internal/eval             # evaluator / interpreter
-internal/domain           # orchestration + ports (ValueSource/OutputSink/TemplateStore)
+internal/domain           # orchestration + ports (ValueSource/OutputSink/SourceProvider)
+internal/conformance      # conformance harness over examples/**/solution.json
+internal/adapters/source  # SourceProvider adapter (filesystem)
+internal/adapters/jsonvalue  # JSON variable-value adapter
 internal/adapters/tui     # TUI adapter
 internal/adapters/output  # stdout / file / clipboard
-internal/adapters/lsp     # LSP adapter
 ```
+
+There is no `cmd/promptpiler-lsp` and no `internal/adapters/lsp`; there is no LSP
+server in the code (§13). Naming note: the port the domain core owns for loading
+templates and types is named `SourceProvider` in code — earlier references to a
+`TemplateStore` port are superseded by this name.
 
 ## 16. Semantics
 
@@ -842,7 +857,7 @@ place**, following the same whitespace rules as `{{ expr }}` (§8.4).
 
 When a template is invoked via `include`, its variables are bound to the supplied
 arguments and are **not** prompted. A template invoked directly
-(`promptpiler run`) prompts for its variables instead.
+(`prompiler run`) prompts for its variables instead.
 
 Template references form a **directed acyclic graph**: a template may not include
 itself, directly or transitively (a cyclic reference is a compile error).

@@ -11,7 +11,9 @@ Ambiguities in `spec.md` that an implementation must resolve. Each is a *decisio
 > **Status:** these decisions were resolved with the author and folded into the
 > compiler and `spec.md` (see also `docs/grammar.md`). Notable resolutions: the
 > product is **Prompiler** (module `github.com/Jh123x/prompiler`, binary
-> `prompiler`, root marker `prompiler.toml`); `replace` is now
+> `prompiler`, root marker `prompiler.toml` — root-marker file discovery is
+> **NOT YET IMPLEMENTED**: there is no marker mechanism, the CLI locates the root
+> via `-root`); `replace` is now
 > `replace(old,new,count)` + `replace_all(old,new)`; user **generics** (§4.8) are
 > implemented; `var x = x + 1` reads the outer binding; included templates emit
 > their trailing newline (the include consumes its own line's newline); map
@@ -29,7 +31,7 @@ Ambiguities in `spec.md` that an implementation must resolve. Each is a *decisio
 | 8 | Interface-typed receiver mutability | Interface-typed values are field-read-only and method-callable; element assignment through them is a compile error. | §4.6 |
 | 9 | Composite defaults | Array/map/class literals are legal defaults; defaults must be constant-literal expressions only (no identifiers, calls, member access, or operators). | §6.2 |
 | 10 | Map iteration order | `keys()`/`values()` in **insertion order**; map equality ignores order. | §4.3, §10 |
-| 11 | Name spelling | Canonical: product **Prompiler**, binary `prompiler`, Go module `github.com/Jh123x/promptpiler`, extension `.ppl`. | §1, §15, §17 |
+| 11 | Name spelling | Canonical: product **Prompiler**, binary `prompiler`, Go module `github.com/Jh123x/prompiler`, extension `.ppl`. | §1, §15, §17 |
 | 12 | Duplicate-name boundary | Resolver owns binding uniqueness (scope/imports/params/locals); TypeChecker owns body-internal uniqueness (enum members, class member set). | §11, §12 |
 | 13 | §4.7 `OPEN` cross-listing | List every `OPEN` marker in §17; register the builtin surface behind a replaceable registry. | §17 |
 
@@ -43,7 +45,7 @@ Make templates consumable by LLM agent harnesses (Claude Code, LangChain, MCP cl
 2. **Embeddable library API** — a stable, semver'd public surface: `Analyze`, `Schema`, `Render`, `Templates`. CLI/TUI/LSP/MCP all become adapters over it.
 3. **MCP adapter** — expose templates as MCP tools (`render_<template>`) and resources (source + schema); a new adapter in the Application Shell, sibling to LSP.
 4. **Typed JSON `ValueSource`** — validate/coerce untyped JSON (e.g. an LLM's tool-call arguments) against a template's schema, returning typed values or positioned diagnostics; generalizes the `variables.json` test harness.
-5. **Live discovery** — `promptpiler list --json` and MCP `list_tools`/`list_resources`, computed on demand. **No committed manifest** (it would be derived data; git is the source of truth) and **no `version`/`id`/`tags` metadata** until templates are distributed as a package outside git.
+5. **Live discovery** — `prompiler list --json` and MCP `list_tools`/`list_resources`, computed on demand. **No committed manifest** (it would be derived data; git is the source of truth) and **no `version`/`id`/`tags` metadata** until templates are distributed as a package outside git.
 
 **Open mapping decisions** for items 1 and 4:
 - `Optional<T>` ↔ JSON: map `none` → JSON `null` (round-trip fidelity), and rely on `required` for required-ness.

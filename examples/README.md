@@ -9,9 +9,10 @@ self-contained subdirectory with three artifacts:
    variables (what the TUI `ValueSource` would prompt for).
 3. **`solution.json`** — the expected rendered prompt **and** expected errors.
 
-There is no compiler in this repository yet, so these examples are authored
-*against the spec*, not produced by running a binary. They are intended to be
-read as learning material and, once a compiler lands, reused as test fixtures.
+The compiler is implemented, and these examples are run as an executable
+conformance suite: `internal/conformance` walks each example and compares its
+`solution.json` against the rendered output (via `make integration`). They also
+double as learning material.
 
 ## Directory layout
 
@@ -76,10 +77,9 @@ variables appear in `variables.json` (see `scenario/onboarding-email`).
 }
 ```
 
-`stage` is one of `"parse" | "typecheck" | "runtime"`. `line`/`column` and
-`message` are **illustrative** — they are a best-effort span and a
-human-readable description, intended to be reconciled with real compiler
-diagnostics once an implementation exists.
+`stage` is one of `"parse" | "typecheck" | "runtime"`. The harness currently
+compares only `stage` and `category`; `line`/`column` and `message` are
+illustrative placeholders not yet reconciled with real compiler diagnostics.
 
 ## Whitespace model used by `expected_prompt`
 
