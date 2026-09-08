@@ -2,11 +2,17 @@
 
 ## Purpose & status
 
-This document describes the **Domain-Driven Design (DDD)** structure of Prompiler — a strongly-typed, pure, deterministic language for authoring LLM prompt templates, shipped as a compiler/runtime binary and an LSP language server.
+This document describes the **Domain-Driven Design (DDD)** structure of Prompiler — a strongly-typed, pure, deterministic language for authoring LLM prompt templates, shipped as a compiler/runtime binary, with an LSP language server (BC4) as target design — not yet implemented.
 
 - **Status:** draft. It is a companion to [`docs/spec.md`](spec.md), which remains the normative language specification.
 - **Scope:** this document is the DDD structure *only*. Spec decisions, the feature backlog, edge cases, and deferred items live in [`docs/features.md`](features.md).
 - **Level:** high-level. Modules and interfaces are described conceptually; there are no concrete Go type signatures. The implementer maps these modules onto the package layout the spec already prescribes (§15).
+
+### Implementation status
+
+- **BC1 (static analysis), BC2 (rendering/evaluation), BC3 (value capture), and BC5 (application shell)** are implemented.
+- **BC4 (editor integration / LSP)** is designed but **NOT YET IMPLEMENTED**; its design is retained below as the target.
+- In code, the port the spec calls `TemplateStore` is implemented under the name **SourceProvider** (which supersedes the `TemplateStore` name).
 
 ---
 
@@ -17,7 +23,7 @@ All layers — lexer, parser, resolver, type checker, evaluator, LSP, TUI — mu
 ### Program & modules
 - **Program** — the full resolved, type-checked unit of compilation: every `.ppl` file reachable from a project root plus its imports, assembled and analyzed together. Immutable once produced.
 - **Module / source file** — one `.ppl` file; a named container of top-level declarations; the unit of `import`.
-- **Project root** — the first ancestor directory containing `promptpiler.toml`, walking up from the working directory.
+- **Project root** — the first ancestor directory containing `prompiler.toml`, walking up from the working directory. *(Not yet implemented: there is no root-marker file mechanism today; the root is simply the `-root` flag, default `.`.)*
 - **Import** — a whole-file, path-relative reference that makes a target module's top-level names visible. *Static.*
 - **Include** — a template-composition construct `{{ include Child(...) }}` that splices another template's rendered output in place. *Dynamic, per-template.* Distinct from import.
 - **Include DAG** — the directed graph of template-includes; must be acyclic.
@@ -107,7 +113,7 @@ Five bounded contexts. The split is justified by *reason to change*: each contex
 
 > *"Which use case is being run, and how are the pure contexts wired to the real world?"*
 
-- **Responsibility:** the use cases — `list`, `check`, `run <template>`, `lsp` — and the sessions behind them. It owns the ports, composes BC1→BC2→BC3 for `run`, wires BC1→BC4 for `lsp`, and hosts the TUI as a view adapter.
+- **Responsibility:** the use cases — `list`, `check`, `run <template>`, and `lsp` (planned; not yet implemented) — and the sessions behind them. It owns the ports, composes BC1→BC2→BC3 for `run`, wires BC1→BC4 for `lsp`, and hosts the TUI as a view adapter.
 - **Core concepts:** application services (`ListTemplates`, `CheckTemplates`, `RunTemplate`, `ServeLanguageServer`); session state (root, open buffers); the port collection.
 - **Why a context:** this is the only context that touches I/O, and it must be the *only* one. The spec's principles are enforced by making BC5 the exclusive owner of side effects — DDD's application layer: thin, use-case-named, orchestration over the domain.
 
@@ -176,7 +182,7 @@ Split in two, because the two halves have different consumers and different valu
 
 - **ValueSource** — "give me the typed value for this variable / form-field." The human-in-the-loop is the only non-determinism in a run; making it a port confines it. Adapters: **TUI** (v1), **test-fixture** (reads `variables.json`), future web/GUI.
 - **OutputSink** — "emit the rendered prompt." The domain produces a string; where it goes (stdout, file, clipboard, LSP buffer) is adapter-selected. Justification: the output medium is a device concern with its own failure modes — a full disk is not a language error and must not surface inside BC2.
-- **SourceProvider** — "resolve a module path to source text; enumerate modules at a root." **Split out of the spec's `TemplateStore`**, because BC1 must compile from **in-memory text** (LSP unsaved buffers). *Store* semantics (returning analyzed templates) belong inside BC1/BC5; the raw-text-with-identity seam must be separate and primary. Adapters: **filesystem**, **in-memory**, and an **LSP workspace overlay** (dirty buffers shadowing disk), plus the root-discovery logic that reads `promptpiler.toml`.
+- **SourceProvider** — "resolve a module path to source text; enumerate modules at a root." **Split out of the spec's `TemplateStore`**, because BC1 must compile from **in-memory text** (LSP unsaved buffers). *Store* semantics (returning analyzed templates) belong inside BC1/BC5; the raw-text-with-identity seam must be separate and primary. Adapters: **filesystem**, **in-memory**, and an **LSP workspace overlay** (dirty buffers shadowing disk). *(Not yet implemented: the described root-discovery logic that reads a `prompiler.toml` marker does not exist yet; today the root is taken from the `-root` flag, default `.`.)*
 
 ### Argued against: `DiagnosticSink` as a port
 
