@@ -1,5 +1,5 @@
 {
   "template": "CodingAgent",
-  "expected_prompt": "<Role>Senior software engineer</Role>\n<Task>\nReview the pull request for correctness and security\n</Task>\n<Note>\n1. Use subagents as much as possible to preserve what you have on context.\n2. Use subagent driven development.\n3. Make use of test driven development. Do not modify the examples.\n4.Make use of git worktrees and branch off the latest commit on the current branch,\nultracode\nPay special attention to authentication and authorization.\n</Note>\n",
+  "expected_prompt": "<Role>Senior software engineer</Role>\n<Task>\nReview the pull request for correctness and security\n</Task>\n<Note>\n1. Use subagents for exploration, feature engineering (subagent driven development) and review to preserve what you have on context.\n2. Ask your subagents to follow test driven development, write the tests for the expected behaviour before starting implementation.\n3. Make use of git worktrees and branch off the latest commit on the current branch.\n4. For documentation and code comments, make use of Simplified Technical English and keep comments short and concise.\n\nPay special attention to authentication and authorization.\n</Note>\n",
   "expected_errors": []
 }
