@@ -110,6 +110,18 @@ func TestStrings(t *testing.T) {
 		require.Len(t, toks, 1)
 		assert.Equal(t, `quote"x`, toks[0].Lexeme)
 	})
+
+	t.Run("quote in quote with \"", func(t *testing.T) {
+		toks, _ := lex(t, "\"'``'\"")
+		require.Len(t, toks, 1)
+		assert.Equal(t, "'``'", toks[0].Lexeme)
+	})
+
+	t.Run("multiline quote", func(t *testing.T) {
+		toks, _ := lex(t, "`This is a test\nstring with a new line\nheck,'\" even multiple`")
+		require.Len(t, toks, 1)
+		assert.Equal(t, "This is a test\nstring with a new line\nheck,'\" even multiple", toks[0].Lexeme)
+	})
 }
 
 func TestComments(t *testing.T) {
