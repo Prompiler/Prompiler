@@ -6,7 +6,11 @@ template CodingAgent {
   variables {
     Role: string
     Task: string
-    Notes: string = "1. Use subagents as much as possible to preserve what you have on context.\n2. Use subagent driven development.\n3. Make use of test driven development. Do not modify the examples.\n4.Make use of git worktrees and branch off the latest commit on the current branch,\nultracode"
+    Notes: string = `1. Use subagents for exploration, feature engineering (subagent driven development) and review to preserve what you have on context.
+2. Ask your subagents to follow test driven development, write the tests for the expected behaviour before starting implementation.
+3. Make use of git worktrees and branch off the latest commit on the current branch.
+4. For documentation and code comments, make use of Simplified Technical English and keep comments short and concise.
+`
     extra_note: string
   }
 

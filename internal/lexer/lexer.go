@@ -155,8 +155,8 @@ func (l *Lexer) scan() token.Token {
 	if isDigit(c) {
 		return l.scanNumber(start)
 	}
-	if c == '"' || c == '\'' {
-		return l.scanString(start)
+	if c == '"' || c == '\'' || c == '`' {
+		return l.scanString(start, c)
 	}
 	return l.scanOperator(start)
 }
@@ -200,7 +200,7 @@ func (l *Lexer) scanNumber(start token.Position) token.Token {
 	return t
 }
 
-func (l *Lexer) scanString(start token.Position) token.Token {
+func (l *Lexer) scanString(start token.Position, quoteType byte) token.Token {
 	quote := l.advance() // consume opening quote
 	var sb strings.Builder
 	for !l.eof() {
@@ -209,7 +209,7 @@ func (l *Lexer) scanString(start token.Position) token.Token {
 			l.advance()
 			return token.Token{Type: token.STRING, Lexeme: sb.String(), Span: l.spanFrom(start)}
 		}
-		if c == '\n' {
+		if c == '\n' && quoteType != '`' {
 			break // unterminated string at newline
 		}
 		if c == '\\' {

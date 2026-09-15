@@ -1,0 +1,42 @@
+// Compile-time error: a cyclic template reference. Templates form a
+// DAG; A includes B which includes A.
+
+template A {
+  variables {
+    x: int
+  }
+
+  prompt {
+    {{ include B(x: x) }}
+  }
+}
+
+template B {
+  variables {
+    x: int
+  }
+
+  prompt {
+    {{ include C(x: x) }}
+  }
+}
+
+template C{
+  variables {
+    x: int
+  }
+  
+  prompt {
+    {{ include D(x: x) }}
+  }
+}
+
+template D {
+  variables {
+    x: int
+  }
+
+  prompt {
+    {{ include A(x: x) }}
+  }
+}
